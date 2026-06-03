@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>반반 BanBan — 개발 로드맵 2026</title>
+<style>
+:root {
+  --indigo:   #4338CA;
+  --indigo-d: #1E1B4B;
+  --violet:   #7C3AED;
+  --amber:    #D97706;
+  --green:    #15803D;
+  --sky:      #0891B2;
+  --red:      #DC2626;
+  --gray-900: #111827;
+  --gray-700: #374151;
+  --gray-500: #6B7280;
+  --gray-200: #E5E7EB;
+  --gray-100: #F3F4F6;
+  --white:    #FFFFFF;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:#F0F4FF; color:var(--gray-900);
+  font-size:14px; line-height:1.6;
+}
+
+/* COVER */
+.cover {
+  background:linear-gradient(135deg,#1E1B4B 0%,#312E81 45%,#4C1D95 100%);
+  color:white; padding:56px 40px 48px; position:relative; overflow:hidden;
+}
+.cover::after {
+  content:''; position:absolute; bottom:-80px; right:-60px;
+  width:320px; height:320px; border-radius:50%;
+  background:rgba(255,255,255,0.03); pointer-events:none;
+}
+.cover-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18);
+  border-radius:20px; padding:4px 14px; font-size:0.75rem;
+  font-weight:700; letter-spacing:.4px; margin-bottom:18px;
+}
+.cover h1 { font-size:2.4rem; font-weight:900; letter-spacing:-1px; margin-bottom:8px; }
+.cover h1 span { color:#A5B4FC; }
+.cover .sub { font-size:0.9rem; opacity:.65; margin-bottom:28px; }
+.cover-stats {
+  display:flex; gap:32px; flex-wrap:wrap;
+  font-size:0.8rem;
+}
+.cover-stat strong { font-size:1.5rem; font-weight:900; display:block; margin-bottom:2px; }
+
+/* WRAPPER */
+.wrap { max-width:1000px; margin:0 auto; padding:0 20px 80px; }
+
+/* SECTION TITLE */
+.sec-title {
+  display:flex; align-items:center; gap:10px;
+  margin:40px 0 18px; padding-bottom:10px;
+  border-bottom:2px solid var(--gray-200);
+}
+.sec-icon {
+  width:34px; height:34px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1rem; flex-shrink:0;
+}
+.sec-title h2 { font-size:1.1rem; font-weight:900; }
+.sec-title p  { font-size:0.78rem; color:var(--gray-500); }
+
+/* PHASE HEADER */
+.phase-header {
+  border-radius:14px; padding:16px 20px; margin-bottom:14px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.phase-tag {
+  display:inline-block; padding:3px 10px; border-radius:20px;
+  font-size:0.7rem; font-weight:800; letter-spacing:.4px;
+}
+
+/* FEATURE CARD */
+.feature-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; margin-bottom:14px; }
+.feature-card {
+  background:var(--white); border:1px solid var(--gray-200);
+  border-radius:12px; padding:14px 16px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+}
+.feature-card .badge {
+  display:inline-flex; align-items:center; gap:4px;
+  border-radius:8px; padding:2px 8px;
+  font-size:0.68rem; font-weight:800; margin-bottom:8px;
+}
+.feature-card h3 { font-size:0.9rem; font-weight:800; margin-bottom:4px; }
+.feature-card p  { font-size:0.8rem; color:var(--gray-500); line-height:1.5; }
+.feature-card .file { font-size:0.72rem; color:var(--indigo); margin-top:8px; font-family:monospace; }
+
+/* STATUS */
+.done    { background:#F0FDF4; color:#15803D; border-color:#BBF7D0; }
+.working { background:#FFFBEB; color:#B45309; border-color:#FDE68A; }
+.plan    { background:#EEF2FF; color:#4338CA; border-color:#C7D2FE; }
+.later   { background:#F8FAFF; color:#6B7280; border-color:#D1D5DB; }
+
+.status-done    { background:#F0FDF4; color:#15803D; }
+.status-working { background:#FFFBEB; color:#B45309; }
+.status-plan    { background:#EEF2FF; color:#4338CA; }
+.status-later   { background:#F3F4F6; color:#6B7280; }
+
+/* PRIORITY TABLE */
+.pri-table { width:100%; border-collapse:collapse; font-size:0.83rem; }
+.pri-table th {
+  background:#F8FAFF; padding:9px 12px;
+  text-align:left; font-size:0.72rem; font-weight:800;
+  color:var(--gray-500); border-bottom:1px solid var(--gray-200);
+  letter-spacing:.4px; text-transform:uppercase;
+}
+.pri-table td { padding:10px 12px; border-bottom:1px solid #F3F4F6; vertical-align:top; }
+.pri-table tr:last-child td { border-bottom:none; }
+.p1 { background:#FEF2F2; color:#DC2626; padding:2px 8px; border-radius:8px; font-size:0.7rem; font-weight:800; white-space:nowrap; }
+.p2 { background:#FFFBEB; color:#D97706; padding:2px 8px; border-radius:8px; font-size:0.7rem; font-weight:800; white-space:nowrap; }
+.p3 { background:#F0FDF4; color:#15803D; padding:2px 8px; border-radius:8px; font-size:0.7rem; font-weight:800; white-space:nowrap; }
+
+/* ARCH */
+.arch-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+.arch-card {
+  background:white; border:1px solid var(--gray-200);
+  border-radius:10px; padding:12px 14px;
+}
+.arch-card .layer { font-size:0.68rem; font-weight:800; text-transform:uppercase;
+  letter-spacing:.5px; margin-bottom:6px; color:var(--gray-500); }
+.arch-card .files { font-size:0.75rem; color:var(--gray-700); line-height:1.8; font-family:monospace; }
+
+/* REVENUE */
+.rev-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+.rev-card {
+  background:white; border:2px solid var(--gray-200);
+  border-radius:14px; padding:18px 16px; position:relative;
+}
+.rev-card.featured { border-color:var(--indigo); box-shadow:0 0 0 3px #EEF2FF; }
+.rev-price { font-size:1.7rem; font-weight:900; margin:8px 0 4px; }
+.rev-features { list-style:none; padding:0; }
+.rev-features li { font-size:0.8rem; padding:4px 0; border-bottom:1px solid #F3F4F6;
+  display:flex; align-items:flex-start; gap:6px; }
+.rev-features li:last-child { border-bottom:none; }
+.check { color:var(--green); font-weight:900; flex-shrink:0; }
+.cross { color:var(--gray-200); font-weight:900; flex-shrink:0; }
+.star  { color:var(--amber);  font-weight:900; flex-shrink:0; }
+
+/* TIMELINE */
+.timeline { position:relative; padding-left:28px; }
+.timeline::before { content:''; position:absolute; left:8px; top:8px; bottom:8px; width:2px; background:var(--gray-200); }
+.tl-item { position:relative; margin-bottom:22px; }
+.tl-dot {
+  position:absolute; left:-24px; top:3px;
+  width:16px; height:16px; border-radius:50%;
+  border:3px solid white; box-shadow:0 0 0 2px currentColor;
+}
+.tl-label { font-size:0.7rem; font-weight:800; letter-spacing:.5px; text-transform:uppercase; margin-bottom:3px; }
+.tl-title { font-weight:800; font-size:0.9rem; margin-bottom:4px; }
+.tl-desc  { font-size:0.8rem; color:var(--gray-500); line-height:1.55; }
+.tl-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+.tl-chip  { background:var(--gray-100); color:var(--gray-700); border-radius:8px; padding:2px 8px; font-size:0.72rem; font-weight:600; }
+
+/* KPI BOXES */
+.kpi-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; margin-bottom:14px; }
+.kpi-box { background:white; border:1px solid var(--gray-200); border-radius:12px; padding:14px; text-align:center; }
+.kpi-box .val { font-size:1.6rem; font-weight:900; line-height:1; }
+.kpi-box .lbl { font-size:0.72rem; color:var(--gray-500); margin-top:4px; }
+
+/* FINAL */
+.final-box {
+  background:linear-gradient(135deg,#1E1B4B,#4C1D95);
+  color:white; border-radius:16px; padding:28px;
+  margin-top:40px;
+}
+.final-box h3 { font-size:1.1rem; font-weight:900; margin-bottom:10px; }
+.final-box p  { font-size:0.88rem; opacity:.8; line-height:1.7; }
+
+@media(max-width:600px){
+  .cover { padding:36px 20px; }
+  .cover h1 { font-size:1.7rem; }
+  .wrap { padding:0 14px 60px; }
+  .feature-grid { grid-template-columns:1fr; }
+  .rev-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="wrap" style="padding-bottom:0">
+    <div class="cover-badge">📋 개발 로드맵 v2.0 · 2026년 6월</div>
+    <h1>반반 <span>BanBan</span><br/>개발 로드맵</h1>
+    <p class="sub">현재 상태 분석 → 단기·중기·장기 계획 → 수익화 전략 전체 정리</p>
+    <div class="cover-stats">
+      <div><strong>27개</strong>Python 파일</div>
+      <div><strong>17,782줄</strong>총 코드</div>
+      <div><strong>6개</strong>마이그레이션</div>
+      <div><strong>4개</strong>학습 모듈</div>
+      <div><strong>3개</strong>사용자 유형</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ══════════════ 현재 아키텍처 ══════════════ -->
+<div class="sec-title" style="margin-top:36px;">
+  <div class="sec-icon" style="background:#EEF2FF;">🗂️</div>
+  <div><h2>현재 코드베이스 구조</h2><p>27개 파일 · 레이어별 정리</p></div>
+</div>
+<div class="arch-grid">
+  <div class="arch-card">
+    <div class="layer" style="color:#4338CA;">🎯 진입점</div>
+    <div class="files">app.py (2355줄)<br/>auth.py (689줄)</div>
+  </div>
+  <div class="arch-card">
+    <div class="layer" style="color:#7C3AED;">📚 학습 모듈</div>
+    <div class="files">study_vocab.py<br/>study_grammar.py<br/>study_exam.py<br/>study_upload.py</div>
+  </div>
+  <div class="arch-card">
+    <div class="layer" style="color:#0891B2;">📊 대시보드</div>
+    <div class="files">study_dashboard.py<br/>study_ranking.py<br/>study_review.py</div>
+  </div>
+  <div class="arch-card">
+    <div class="layer" style="color:#15803D;">🔧 관리</div>
+    <div class="files">study_wrongnote.py<br/>study_weakness.py<br/>study_class.py<br/>study_homework.py</div>
+  </div>
+  <div class="arch-card">
+    <div class="layer" style="color:#D97706;">🤖 AI</div>
+    <div class="files">study_ai.py (1604줄)<br/>chatbot.py<br/>generator.py</div>
+  </div>
+  <div class="arch-card">
+    <div class="layer" style="color:#DC2626;">📬 리포트</div>
+    <div class="files">study_parent_report.py<br/>study_cheatsheet.py<br/>study_secret.py</div>
+  </div>
+  <div class="arch-card">
+    <div class="layer" style="color:#6B7280;">🏗️ 인프라</div>
+    <div class="files">study_db.py<br/>supabase_client.py<br/>icons.py<br/>sounds.py</div>
+  </div>
+  <div class="arch-card">
+    <div class="layer" style="color:#6B7280;">🗄️ DB</div>
+    <div class="files">마이그레이션 v1~v6<br/>Supabase PostgreSQL<br/>RLS 정책 완비</div>
+  </div>
+</div>
+
+
+<!-- ══════════════ 완료된 기능 ══════════════ -->
+<div class="sec-title">
+  <div class="sec-icon" style="background:#F0FDF4;">✅</div>
+  <div><h2>완료된 기능 (Production Ready)</h2><p>실제 서비스 가능한 수준</p></div>
+</div>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>🔐 인증 시스템</h3>
+    <p>선생님(이메일) + 학생(아이디+초대코드) 분리 가입. 자동 로그인 (localStorage 토큰 영속). 로그인 후 역할별 대시보드 자동 이동.</p>
+    <div class="file">auth.py · app.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>🔑 초대 코드 시스템</h3>
+    <p>선생님이 코드 발급 → 학생이 코드로 가입 → 자동 teacher_id 연결. Supabase RPC generate_invite_code().</p>
+    <div class="file">auth.py · study_dashboard.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>📖 단어 학습 + TTS</h3>
+    <p>플래시카드 4종 퀴즈. Web Speech API TTS(원어민 발음). 오답 자동 기록 → SM-2 복습 스케줄 자동 등록.</p>
+    <div class="file">study_vocab.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>📝 문법 학습</h3>
+    <p>문법 포인트 등록/관리. 드릴 문제 풀기. 오답 자동 기록 → 복습 스케줄 등록.</p>
+    <div class="file">study_grammar.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>📄 내신 문제</h3>
+    <p>노트에서 AI가 자동 문제 생성. 지문 기반 선택/단답형. 오답 자동 처리 + 복습 연동.</p>
+    <div class="file">study_exam.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>📤 기출 문제</h3>
+    <p>기출 파일 업로드. 문제 은행 저장. 랜덤 출제. 오답 기록 → 복습 연동.</p>
+    <div class="file">study_upload.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>🔁 SM-2 망각곡선 복습</h3>
+    <p>단어·문법·문장 오답 자동 SM-2 알고리즘 스케줄링. 복습 알림 위젯. 홈 화면 연동.</p>
+    <div class="file">study_review.py · study_db.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>📊 학생 대시보드</h3>
+    <p>KPI (연속학습·세션·오답·평균). 주간 히트맵. 모듈별 성과 링·바 차트. 최근 이력.</p>
+    <div class="file">study_dashboard.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>🏫 선생님 대시보드 (프리미엄)</h3>
+    <p>학생 현황 카드. AI 개인 분석. 초대 코드 관리. 심리학 기반 프리미엄 UI (SDT·지각된 가치·소유 효과).</p>
+    <div class="file">study_dashboard.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>📨 학부모 주간 리포트</h3>
+    <p>Gmail SMTP 자동 이메일 발송. AI 생성 한글 코멘트. 연락처 관리 탭. 발송 이력 로그.</p>
+    <div class="file">study_parent_report.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>🏆 클래스 랭킹</h3>
+    <p>세션/점수/연속학습 기준 랭킹. 티어 시스템 (다이아/플래티넘/골드). 뱃지.</p>
+    <div class="file">study_ranking.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>💬 AI 채팅 (반쌤)</h3>
+    <p>Gemini 기반 영어 학습 Q&A 챗봇. 노트 컨텍스트 반영. 오답 기반 질문 생성.</p>
+    <div class="file">chatbot.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>❌ 오답노트</h3>
+    <p>단어·문제 오답 통합 관리. AI 해설 생성. 약점 처방전 (weakness_profile). 비법노트.</p>
+    <div class="file">study_wrongnote.py · study_weakness.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>📋 숙제 관리</h3>
+    <p>선생님이 숙제 생성·마감 설정. 학생 제출. 제출 현황 확인.</p>
+    <div class="file">study_homework.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-done">✅ 완료</div>
+    <h3>🔒 보안 + RLS</h3>
+    <p>Supabase RLS 전 테이블 적용. .env 기반 시크릿 관리. 비밀번호 정책 (8자+대소문자+숫자+특수).</p>
+    <div class="file">auth.py · *.sql</div>
+  </div>
+</div>
+
+
+<!-- ══════════════ 버그 수정 필요 ══════════════ -->
+<div class="sec-title">
+  <div class="sec-icon" style="background:#FFFBEB;">🔧</div>
+  <div><h2>진행 중 / 알려진 버그</h2><p>빠른 시일 내 수정 필요</p></div>
+</div>
+<div class="wrap" style="padding:0;">
+<table class="pri-table" style="background:white;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+  <thead>
+    <tr><th>우선순위</th><th>항목</th><th>원인</th><th>수정 방법</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="p1">🔴 긴급</span></td>
+      <td><strong>TTS 문법 카드 미연결</strong></td>
+      <td>study_grammar.py에 _tts_button() 미삽입</td>
+      <td>단어학습과 동일한 TTS 버튼 패턴 적용</td>
+    </tr>
+    <tr>
+      <td><span class="p1">🔴 긴급</span></td>
+      <td><strong>홈 화면 "오늘 할 일 추천" 없음</strong></td>
+      <td>미구현</td>
+      <td>SM-2 due 항목 + 학습 통계 기반 추천 카드 추가</td>
+    </tr>
+    <tr>
+      <td><span class="p2">🟡 중요</span></td>
+      <td><strong>신규 사용자 온보딩 없음</strong></td>
+      <td>가입 후 바로 빈 화면</td>
+      <td>3단계 온보딩 마법사 구현</td>
+    </tr>
+    <tr>
+      <td><span class="p2">🟡 중요</span></td>
+      <td><strong>study_class.py 미연결</strong></td>
+      <td>"내 클래스" 메뉴가 있지만 미완성</td>
+      <td>클래스 가입/탈퇴/공지 기능 완성</td>
+    </tr>
+    <tr>
+      <td><span class="p3">🟢 보통</span></td>
+      <td><strong>메모리 누수 (st.spinner 중첩)</strong></td>
+      <td>AI 호출 중 rerun 시 spinner 충돌</td>
+      <td>spinner 외부 try/except 정리</td>
+    </tr>
+    <tr>
+      <td><span class="p3">🟢 보통</span></td>
+      <td><strong>모바일 레이아웃 미최적화</strong></td>
+      <td>st.columns() 좁은 화면에서 찌그러짐</td>
+      <td>반응형 CSS 미디어 쿼리 보강</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+<!-- ══════════════ 단기 계획 ══════════════ -->
+<div class="sec-title" style="margin-top:36px;">
+  <div class="sec-icon" style="background:#FFFBEB;">⚡</div>
+  <div><h2>단기 계획 (1~2주)</h2><p>지금 당장 실행 가능한 것들</p></div>
+</div>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 1순위</div>
+    <h3>✅ O/X (T/F) 이해도 문제</h3>
+    <p>대화문·본문 이해를 돕는 참/거짓 문제 자동 생성. <b>대화문 각 1개당 3문제</b>, <b>본문은 단락별 7문제 이상</b>. AI가 지문 기반 사실확인형 O/X 출제 → 오답 시 SM-2 복습 연동.</p>
+    <div class="file">study_ai.py + study_exam.py (신규 O/X 모드)</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 1순위</div>
+    <h3>🔑 대화문 키포인트 · 본문 단락 요약</h3>
+    <p>노트 생성 시 AI가 <b>대화문별 핵심 1줄</b>(예: "A가 B에게 주말 계획을 물어봄")을 대화문 <b>아래 셀</b>에, <b>본문 단락별 요점 1~2문장</b>을 단락 끝에 자동 생성. 선행조직자(Ausubel) + 자기점검 효과로 이해도 ↑. 위치는 '위'가 아닌 '아래'(스포일러 방지). 기존 노트 하위호환(없으면 미표시), 엑셀 다운로드에도 반영.</p>
+    <div class="file">generator.py · study_ai.py · study_note_reader.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 1순위</div>
+    <h3>🏠 홈 화면 "오늘 할 일" 카드</h3>
+    <p>로그인하면 바로 보이는 액션 카드. "오늘 복습 12개", "단어 퀴즈 권장", "약점 3가지" 등. SM-2 due 항목 자동 계산.</p>
+    <div class="file">study_review.py + app.py (홈 섹션)</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 1순위</div>
+    <h3>🔊 문법 카드 TTS 연결</h3>
+    <p>문법 예문에 TTS 버튼 추가. study_vocab.py와 동일한 Web Speech API 패턴. 복습 카드에도 동일하게 적용.</p>
+    <div class="file">study_grammar.py · study_review.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 2순위</div>
+    <h3>🧭 신규 사용자 온보딩</h3>
+    <p>첫 로그인 감지 → 3단계 마법사: ①노트 업로드 ②학습 시작 ③복습 스케줄 설명. 선생님용/학생용 분리.</p>
+    <div class="file">app.py (온보딩 플로우)</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 2순위</div>
+    <h3>🌐 랜딩 페이지</h3>
+    <p>외부 공개용 소개 페이지. 차별점 3가지 + 무료 시작 CTA + 선생님 베타 신청. Streamlit 외부 또는 별도 HTML.</p>
+    <div class="file">landing.html (신규)</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 2순위</div>
+    <h3>📱 카카오톡 채널 연동</h3>
+    <p>앱 내 카카오 채널 링크 버튼. 학부모 리포트에 카카오 공유 버튼. 채널 구독 유도.</p>
+    <div class="file">study_parent_report.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-plan">🔵 3순위</div>
+    <h3>🧑‍💼 선생님 프로필 페이지</h3>
+    <p>학교명, 담당 과목, 자기소개 편집. 학생에게 보이는 선생님 프로필 카드. 클래스 공지 작성.</p>
+    <div class="file">study_class.py (완성)</div>
+  </div>
+</div>
+
+
+<!-- ══════════════ 중기 계획 ══════════════ -->
+<div class="sec-title">
+  <div class="sec-icon" style="background:#EEF2FF;">🚀</div>
+  <div><h2>중기 계획 (1~2개월)</h2><p>서비스 품질을 크게 높이는 기능들</p></div>
+</div>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="badge status-working">🟡 설계 중</div>
+    <h3>💰 결제 시스템</h3>
+    <p>Toss Payments API 연동. 학생 프리미엄(월 9,900원) + 선생님 플랜(월 49,000원). 구독 관리 + 자동 갱신. Supabase subscription 테이블 추가.</p>
+    <div class="file">payment.py (신규) + supabase_migration_v7.sql</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-working">🟡 설계 중</div>
+    <h3>⚔️ 클래스 실시간 랭킹 배틀</h3>
+    <p>주간 학습 대결 시스템. 참여 학생 간 실시간 점수 경쟁. 배틀 종료 시 자동 결과 발표 + 뱃지 수여. Supabase Realtime 활용.</p>
+    <div class="file">study_ranking.py (확장)</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-working">🟡 설계 중</div>
+    <h3>🎤 TTS 음질 업그레이드</h3>
+    <p>현재 Web Speech API(브라우저 의존) → Google TTS / gTTS 서버사이드로 전환. 일관된 음질. 오프라인에서도 재생 가능한 오디오 캐싱.</p>
+    <div class="file">sounds.py (확장) + API 연동</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-working">🟡 설계 중</div>
+    <h3>🤝 친구 초대 프로그램</h3>
+    <p>추천인 코드 발급. 초대 성공 시 양쪽 1개월 무료 연장. 학급 전체 가입 시 선생님 플랜 보너스. 바이럴 K-factor 목표 0.4.</p>
+    <div class="file">auth.py + referral.py (신규)</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-working">🟡 설계 중</div>
+    <h3>📊 AI 학습 분석 리포트 v2</h3>
+    <p>월간 학습 리포트 자동 생성. 학생의 "성장 그래프" 시각화 (월별 추이). 약점 영역 변화 추적. PDF 다운로드.</p>
+    <div class="file">study_ai.py + study_dashboard.py</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-working">🟡 설계 중</div>
+    <h3>🎯 스마트 학습 추천 엔진</h3>
+    <p>학습 패턴 분석 → "지금 이 단어를 공부하세요" 능동 추천. 취약 문법 자동 감지 → 관련 연습 문제 자동 연결.</p>
+    <div class="file">study_ai.py + study_review.py</div>
+  </div>
+</div>
+
+
+<!-- ══════════════ 장기 계획 ══════════════ -->
+<div class="sec-title">
+  <div class="sec-icon" style="background:#FAF5FF;">🌟</div>
+  <div><h2>장기 계획 (3~6개월)</h2><p>플랫폼 경쟁력을 완성하는 기능들</p></div>
+</div>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="badge status-later">⚪ 장기</div>
+    <h3>📱 모바일 앱 (PWA)</h3>
+    <p>Streamlit → Progressive Web App 전환. 홈 화면 설치 지원. 푸시 알림 (복습 리마인더). 오프라인 모드 지원.</p>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-later">⚪ 장기</div>
+    <h3>🎙️ 발음 평가 AI</h3>
+    <p>학생이 단어를 말하면 발음 점수 평가. Web Speech API → 서버 STT 전환. 원어민 발음과 비교 피드백.</p>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-later">⚪ 장기</div>
+    <h3>📸 OCR 사진 업로드</h3>
+    <p>교과서·프린트 사진 → 자동 텍스트 추출 → 즉시 학습. ocr_extractor.py 이미 기반 존재. Google Vision API 연동.</p>
+    <div class="file">ocr_extractor.py (완성)</div>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-later">⚪ 장기</div>
+    <h3>🏫 학원 관리 시스템</h3>
+    <p>다반 관리 (2반, 3반 동시 운영). 선생님 5명 협업. 학원 단위 통계 리포트. 원장님 계정 분리.</p>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-later">⚪ 장기</div>
+    <h3>🌏 다국어 확장</h3>
+    <p>영어 외 한자, 일본어, 수학 공식 등 다과목 확장. 과목별 특화 학습 로직 분리.</p>
+  </div>
+  <div class="feature-card">
+    <div class="badge status-later">⚪ 장기</div>
+    <h3>🤝 학원-학부모 직접 소통</h3>
+    <p>앱 내 메시지. 상담 예약. 수업료 영수증 발행. 출결 관리 연동.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════ 수익화 전략 ══════════════ -->
+<div class="sec-title">
+  <div class="sec-icon" style="background:#FFFBEB;">💰</div>
+  <div><h2>수익화 플랜</h2><p>플랜 구조 + 목표 매출</p></div>
+</div>
+
+<div class="rev-grid">
+  <div class="rev-card">
+    <div style="font-size:0.78rem;font-weight:700;color:#6B7280;">🆓 FREE</div>
+    <div class="rev-price" style="color:#374151;">₩0</div>
+    <div style="font-size:0.78rem;color:#6B7280;margin-bottom:12px;">진입 장벽 없이 시작</div>
+    <ul class="rev-features">
+      <li><span class="check">✓</span> 노트 1개, 하루 퀴즈 5회</li>
+      <li><span class="check">✓</span> 기본 오답 저장</li>
+      <li><span class="check">✓</span> 클래스 랭킹 보기</li>
+      <li><span class="cross">✗</span> TTS 발음</li>
+      <li><span class="cross">✗</span> SM-2 자동 복습</li>
+      <li><span class="cross">✗</span> AI 해설</li>
+    </ul>
+  </div>
+  <div class="rev-card featured">
+    <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+         background:#4338CA;color:white;font-size:0.7rem;font-weight:800;
+         padding:3px 12px;border-radius:20px;white-space:nowrap;">가장 인기</div>
+    <div style="font-size:0.78rem;font-weight:700;color:#4338CA;">⭐ 학생 프리미엄</div>
+    <div class="rev-price" style="color:#4338CA;">₩9,900<span style="font-size:0.8rem;color:#6B7280;">/월</span></div>
+    <div style="font-size:0.78rem;color:#6B7280;margin-bottom:12px;">커피 한 잔 가격</div>
+    <ul class="rev-features">
+      <li><span class="check">✓</span> 노트 무제한</li>
+      <li><span class="check">✓</span> 퀴즈 무제한</li>
+      <li><span class="star">★</span> TTS 원어민 발음</li>
+      <li><span class="star">★</span> SM-2 자동 복습 스케줄</li>
+      <li><span class="star">★</span> AI 오답 해설</li>
+      <li><span class="check">✓</span> 주간 학습 리포트</li>
+    </ul>
+  </div>
+  <div class="rev-card featured" style="border-color:#7C3AED;box-shadow:0 0 0 3px #FAF5FF;">
+    <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+         background:#7C3AED;color:white;font-size:0.7rem;font-weight:800;
+         padding:3px 12px;border-radius:20px;white-space:nowrap;">핵심 수익원</div>
+    <div style="font-size:0.78rem;font-weight:700;color:#7C3AED;">🏫 선생님 플랜</div>
+    <div class="rev-price" style="color:#7C3AED;">₩49,000<span style="font-size:0.8rem;color:#6B7280;">/월</span></div>
+    <div style="font-size:0.78rem;color:#6B7280;margin-bottom:12px;">학생 30명 포함</div>
+    <ul class="rev-features">
+      <li><span class="star">★</span> 선생님 실시간 대시보드</li>
+      <li><span class="star">★</span> AI 학생별 맞춤 추천</li>
+      <li><span class="star">★</span> 학부모 주간 이메일 리포트</li>
+      <li><span class="check">✓</span> 교재 무제한 업로드</li>
+      <li><span class="check">✓</span> 학생 전원 프리미엄 포함</li>
+      <li><span class="check">✓</span> 초대 코드 발급</li>
+    </ul>
+  </div>
+  <div class="rev-card">
+    <div style="font-size:0.78rem;font-weight:700;color:#15803D;">🏢 학원 Pro</div>
+    <div class="rev-price" style="color:#15803D;">₩99,000<span style="font-size:0.8rem;color:#6B7280;">/월</span></div>
+    <div style="font-size:0.78rem;color:#6B7280;margin-bottom:12px;">학생 무제한</div>
+    <ul class="rev-features">
+      <li><span class="star">★</span> 학생 무제한</li>
+      <li><span class="star">★</span> 선생님 계정 최대 5명</li>
+      <li><span class="star">★</span> 학원 단위 통계 리포트</li>
+      <li><span class="check">✓</span> 커스텀 온보딩 지원</li>
+      <li><span class="check">✓</span> 우선 기술 지원</li>
+    </ul>
+  </div>
+</div>
+
+<div style="background:white;border:1px solid #E5E7EB;border-radius:12px;padding:20px;margin-top:14px;">
+  <div style="font-size:0.85rem;font-weight:800;color:#374151;margin-bottom:14px;">📈 매출 시뮬레이션 (6개월 목표)</div>
+  <div class="kpi-row">
+    <div class="kpi-box"><div class="val" style="color:#4338CA;">100명</div><div class="lbl">학생 프리미엄<br/>₩990,000/월</div></div>
+    <div class="kpi-box"><div class="val" style="color:#7C3AED;">10개</div><div class="lbl">선생님 플랜<br/>₩490,000/월</div></div>
+    <div class="kpi-box"><div class="val" style="color:#15803D;">2개</div><div class="lbl">학원 Pro<br/>₩198,000/월</div></div>
+    <div class="kpi-box" style="background:#F0FDF4;border-color:#BBF7D0;"><div class="val" style="color:#15803D;">168만</div><div class="lbl">합계 월 매출<br/>6개월 후 목표</div></div>
+    <div class="kpi-box" style="background:#EEF2FF;border-color:#C7D2FE;"><div class="val" style="color:#4338CA;">500만</div><div class="lbl">1년 후 목표<br/>(선생님 50개)</div></div>
+  </div>
+  <div style="font-size:0.8rem;color:#6B7280;background:#F8FAFF;border-radius:8px;padding:10px 14px;">
+    💡 <strong>핵심 전략:</strong> 선생님 1명 확보 = 학생 30명 자동 유입. 선생님 10명 → 학생 300명 기반.
+    B2B(학원) 가 매출의 80% 차지하는 구조 목표.
+  </div>
+</div>
+
+
+<!-- ══════════════ 90일 실행 로드맵 ══════════════ -->
+<div class="sec-title">
+  <div class="sec-icon" style="background:#F0FDF4;">📅</div>
+  <div><h2>90일 실행 로드맵</h2><p>오늘부터 3개월간 구체적 행동 계획</p></div>
+</div>
+
+<div style="background:white;border:1px solid #E5E7EB;border-radius:14px;padding:22px;">
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-dot" style="color:#DC2626;background:#DC2626;"></div>
+      <div class="tl-label" style="color:#DC2626;">1~2주차 · 지금 당장</div>
+      <div class="tl-title">앱 완성도 + 첫 실사용자</div>
+      <div class="tl-desc">홈 화면 "오늘 할 일" 카드, 문법 TTS 연결, 온보딩 마법사 제작. 선생님 베타 1명 모집 (인디스쿨/교사 단톡). 3개월 무료 제공 + 주 1회 피드백 수집.</div>
+      <div class="tl-chips">
+        <span class="tl-chip">홈 위젯</span>
+        <span class="tl-chip">TTS 문법</span>
+        <span class="tl-chip">온보딩</span>
+        <span class="tl-chip">베타 선생님 1명</span>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="color:#D97706;background:#D97706;"></div>
+      <div class="tl-label" style="color:#D97706;">3~4주차</div>
+      <div class="tl-title">랜딩 페이지 + 카카오 채널</div>
+      <div class="tl-desc">외부 공개용 랜딩 페이지 제작 (차별점 3가지 + CTA). 카카오톡 채널 개설 + 첫 콘텐츠 5개. 인스타그램 계정 개설 + 릴스 3개.</div>
+      <div class="tl-chips">
+        <span class="tl-chip">랜딩 페이지</span>
+        <span class="tl-chip">카카오 채널</span>
+        <span class="tl-chip">인스타그램</span>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="color:#0891B2;background:#0891B2;"></div>
+      <div class="tl-label" style="color:#0891B2;">5~7주차</div>
+      <div class="tl-title">결제 시스템 + 선생님 10명</div>
+      <div class="tl-desc">Toss Payments API 연동. 구독 테이블 Supabase 추가. 교사 커뮤니티 포스팅 확대. 베타 선생님 10명 확보 목표. 첫 피드백 반영 버전 릴리즈.</div>
+      <div class="tl-chips">
+        <span class="tl-chip">Toss 결제</span>
+        <span class="tl-chip">선생님 10명</span>
+        <span class="tl-chip">v2 릴리즈</span>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="color:#7C3AED;background:#7C3AED;"></div>
+      <div class="tl-label" style="color:#7C3AED;">8~10주차</div>
+      <div class="tl-title">입소문 프로그램 + 랭킹 배틀</div>
+      <div class="tl-desc">친구 초대 프로그램 앱 내 추가. 클래스 실시간 랭킹 배틀 오픈. 베타 사용자 후기 수집 + 공개. 학원 파트너십 3곳 논의 시작.</div>
+      <div class="tl-chips">
+        <span class="tl-chip">추천 프로그램</span>
+        <span class="tl-chip">랭킹 배틀</span>
+        <span class="tl-chip">학원 파트너십</span>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="color:#15803D;background:#15803D;"></div>
+      <div class="tl-label" style="color:#15803D;">11~13주차 · 3개월 마감</div>
+      <div class="tl-title">첫 유료 전환 캠페인</div>
+      <div class="tl-desc">"개학 특가" 이벤트. 선생님 플랜 첫 달 50% 할인. 학생 플랜 3개월 결제 시 1개월 무료. 목표: 유료 전환 50명 이상.</div>
+      <div class="tl-chips">
+        <span class="tl-chip">첫 달 특가</span>
+        <span class="tl-chip">유료 50명 목표</span>
+        <span class="tl-chip">매출 시작</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════ 원칙 ══════════════ -->
+<div class="final-box">
+  <h3>🌙 절대 원칙 — 우리가 만드는 것의 본질</h3>
+  <p>
+    반반은 <strong>"팔기 위해"</strong> 만든 앱이 아니라, <strong>"진짜로 도움이 되기 위해"</strong> 만든 앱입니다.<br/><br/>
+    선생님이 밤새 교재를 만들고, AI가 학생의 약점을 분석하고, 학부모가 안심하고 아이를 믿을 수 있는 시스템 — 이게 우리가 파는 것입니다.<br/><br/>
+    ✅ 진짜 기능만 약속한다 &nbsp; ✅ 자동 결제 트릭 없음 &nbsp; ✅ 데이터 제3자 판매 없음 &nbsp; ✅ 해지 1클릭<br/><br/>
+    <strong>진심이 담긴 제품은 반드시 입소문이 납니다. 우리는 그것만 믿고 갑니다.</strong>
+  </p>
+  <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15);
+       font-size:0.78rem;opacity:.5;display:flex;gap:20px;flex-wrap:wrap;">
+    <span>📝 최종 업데이트: 2026-06-01</span>
+    <span>📦 코드: 27파일 · 17,782줄</span>
+    <span>🔒 내부 전용 문서</span>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# 환경변수 (절대 GitHub에 올리면 안됨)
+.env
+*.env
+
+# Node.js
+node_modules/
+npm-debug.log*
+.next/
+out/
+
+# 불필요한 폴더
+livelingo/
+/tmp/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.Python
+
+# 로컬 DB
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

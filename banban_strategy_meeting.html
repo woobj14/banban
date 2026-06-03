@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>반반 BanBan — 수익화 전략 팀 회의 보고서</title>
+<style>
+  :root {
+    --indigo:   #4338ca;
+    --indigo-l: #eef2ff;
+    --violet:   #7c3aed;
+    --green:    #16a34a;
+    --green-l:  #f0fdf4;
+    --amber:    #d97706;
+    --amber-l:  #fffbeb;
+    --red:      #dc2626;
+    --red-l:    #fef2f2;
+    --sky:      #0284c7;
+    --sky-l:    #f0f9ff;
+    --gray-900: #111827;
+    --gray-700: #374151;
+    --gray-500: #6b7280;
+    --gray-300: #d1d5db;
+    --gray-100: #f3f4f6;
+    --gray-50:  #f9fafb;
+    --white:    #ffffff;
+    --radius:   10px;
+    --shadow:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md:0 4px 16px rgba(0,0,0,.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: #f1f5f9;
+    color: var(--gray-900);
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  /* ── COVER ─────────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%);
+    color: white;
+    padding: 60px 40px 50px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .cover-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+    border-radius: 20px; padding: 4px 14px; font-size: 0.78rem;
+    font-weight: 600; letter-spacing: .4px; margin-bottom: 20px;
+  }
+  .cover h1 { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .cover h1 span { color: #a5b4fc; }
+  .cover .subtitle { font-size: 1rem; opacity: .75; margin-bottom: 32px; }
+  .cover-meta {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    font-size: 0.82rem; opacity: .65;
+  }
+  .cover-meta span { display: flex; align-items: center; gap: 5px; }
+
+  /* ── LAYOUT ─────────────────────────────────────────── */
+  .wrapper { max-width: 900px; margin: 0 auto; padding: 0 16px 60px; }
+
+  /* ── SECTION HEADERS ────────────────────────────────── */
+  .section-head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 40px 0 18px;
+  }
+  .section-icon {
+    width: 36px; height: 36px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+  }
+  .section-head h2 { font-size: 1.15rem; font-weight: 800; color: var(--gray-900); }
+  .section-head p  { font-size: 0.8rem; color: var(--gray-500); margin-top: 1px; }
+
+  /* ── CARDS ───────────────────────────────────────────── */
+  .card {
+    background: white; border: 1px solid var(--gray-300);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 20px 22px; margin-bottom: 14px;
+  }
+
+  /* ── TEAM ROSTER ─────────────────────────────────────── */
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap: 12px; margin-bottom: 8px; }
+  .member-card {
+    background: white; border: 1px solid var(--gray-300);
+    border-radius: var(--radius); padding: 16px 14px; text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .member-avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; margin: 0 auto 10px;
+  }
+  .member-name  { font-weight: 800; font-size: 0.9rem; color: var(--gray-900); }
+  .member-role  { font-size: 0.72rem; color: var(--gray-500); margin-top: 2px; }
+  .member-badge { display: inline-block; margin-top: 7px; padding: 2px 9px; border-radius: 12px; font-size: 0.68rem; font-weight: 700; }
+
+  /* ── CHAT BUBBLES ────────────────────────────────────── */
+  .chat-wrap { margin-bottom: 14px; }
+  .bubble-row { display: flex; gap: 11px; align-items: flex-start; margin-bottom: 16px; }
+  .bubble-row.right { flex-direction: row-reverse; }
+  .avatar-sm {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0; margin-top: 2px;
+  }
+  .bubble-body { max-width: 80%; }
+  .bubble-who  { font-size: 0.72rem; font-weight: 700; color: var(--gray-500); margin-bottom: 4px; }
+  .bubble-who .tag { display: inline-block; margin-left: 5px; padding: 1px 7px; border-radius: 10px; font-size: 0.66rem; font-weight: 700; }
+  .bubble {
+    background: white; border: 1px solid var(--gray-300);
+    border-radius: 4px 12px 12px 12px; padding: 11px 14px;
+    font-size: 0.9rem; line-height: 1.6; box-shadow: var(--shadow);
+  }
+  .bubble.right-bub { border-radius: 12px 4px 12px 12px; background: var(--indigo-l); }
+  .bubble strong { color: var(--indigo); }
+  .bubble em { color: var(--violet); font-style: normal; font-weight: 700; }
+  .bubble ul  { margin: 8px 0 4px 18px; }
+  .bubble li  { margin-bottom: 4px; font-size: 0.88rem; }
+
+  /* ── DECISION BOX ────────────────────────────────────── */
+  .decision {
+    border-left: 4px solid var(--indigo); background: var(--indigo-l);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 10px 0 16px;
+    font-size: 0.88rem;
+  }
+  .decision .label { font-size: 0.7rem; font-weight: 800; color: var(--indigo); letter-spacing: .5px; margin-bottom: 4px; text-transform: uppercase; }
+
+  /* ── PRICING TABLE ───────────────────────────────────── */
+  .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap: 14px; }
+  .price-card {
+    background: white; border: 2px solid var(--gray-300);
+    border-radius: 14px; padding: 22px 20px; position: relative;
+    transition: box-shadow .2s;
+  }
+  .price-card.featured { border-color: var(--indigo); box-shadow: 0 0 0 4px #eef2ff; }
+  .price-badge {
+    position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+    background: var(--indigo); color: white;
+    font-size: 0.7rem; font-weight: 800; padding: 3px 12px; border-radius: 20px;
+    white-space: nowrap;
+  }
+  .price-tier   { font-size: 0.8rem; font-weight: 700; color: var(--gray-500); margin-bottom: 6px; }
+  .price-amount { font-size: 1.9rem; font-weight: 900; color: var(--gray-900); line-height: 1; }
+  .price-amount sub { font-size: 0.8rem; font-weight: 600; color: var(--gray-500); vertical-align: bottom; }
+  .price-desc   { font-size: 0.8rem; color: var(--gray-500); margin: 8px 0 14px; }
+  .price-features { list-style: none; padding: 0; }
+  .price-features li { font-size: 0.82rem; padding: 5px 0; border-bottom: 1px solid var(--gray-100); display: flex; gap: 7px; align-items: flex-start; }
+  .price-features li:last-child { border-bottom: none; }
+  .price-features .check { color: var(--green); font-weight: 900; flex-shrink: 0; }
+  .price-features .cross { color: var(--gray-300); font-weight: 900; flex-shrink: 0; }
+  .price-features .star  { color: var(--amber); font-weight: 900; flex-shrink: 0; }
+
+  /* ── CHANNEL CARDS ───────────────────────────────────── */
+  .channel-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap: 12px; }
+  .channel-card { background: white; border: 1px solid var(--gray-300); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+  .channel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .channel-icon { font-size: 1.4rem; }
+  .channel-name { font-weight: 800; font-size: 0.92rem; }
+  .channel-who  { font-size: 0.73rem; color: var(--gray-500); }
+  .channel-action { font-size: 0.83rem; color: var(--gray-700); line-height: 1.55; }
+  .channel-kpi  { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gray-100); font-size: 0.75rem; color: var(--indigo); font-weight: 700; }
+
+  /* ── USP GRID ────────────────────────────────────────── */
+  .usp-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 12px; }
+  .usp-card {
+    background: white; border: 1px solid var(--gray-300);
+    border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .usp-icon { font-size: 1.5rem; margin-bottom: 8px; }
+  .usp-title { font-weight: 800; font-size: 0.9rem; margin-bottom: 5px; }
+  .usp-body  { font-size: 0.82rem; color: var(--gray-700); line-height: 1.55; }
+  .usp-vs    { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--gray-100); font-size: 0.75rem; color: var(--red); font-weight: 600; }
+
+  /* ── TIMELINE ────────────────────────────────────────── */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content:''; position:absolute; left:7px; top:6px; bottom:6px; width:2px; background: var(--gray-300); }
+  .tl-item { position: relative; margin-bottom: 20px; }
+  .tl-dot  { position: absolute; left: -24px; top: 4px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 2px currentColor; }
+  .tl-month { font-size: 0.72rem; font-weight: 800; color: var(--gray-500); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 3px; }
+  .tl-task  { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+  .tl-desc  { font-size: 0.82rem; color: var(--gray-700); }
+
+  /* ── ACTION TABLE ────────────────────────────────────── */
+  .action-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .action-table th { background: var(--gray-50); padding: 9px 12px; text-align: left; font-size: 0.75rem; font-weight: 700; color: var(--gray-500); border-bottom: 1px solid var(--gray-300); }
+  .action-table td { padding: 10px 12px; border-bottom: 1px solid var(--gray-100); vertical-align: top; }
+  .action-table tr:last-child td { border-bottom: none; }
+  .priority-high   { background: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+  .priority-mid    { background: #fffbeb; color: #d97706; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+  .priority-low    { background: #f0fdf4; color: #16a34a; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+
+  /* ── MISC ────────────────────────────────────────────── */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+  .divider { border: none; border-top: 1px solid var(--gray-300); margin: 30px 0; }
+  .note-box { background: var(--amber-l); border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 16px; font-size: 0.85rem; color: #92400e; margin: 14px 0; }
+  .note-box strong { color: var(--amber); }
+  .highlight { background: linear-gradient(120deg,#fde68a 0%,#fbbf24 100%); padding: 2px 4px; border-radius: 3px; font-weight: 700; color: #78350f; }
+  .final-box {
+    background: linear-gradient(135deg, #1e1b4b, #4c1d95);
+    color: white; border-radius: 14px; padding: 28px 28px;
+    margin-top: 36px;
+  }
+  .final-box h3 { font-size: 1.2rem; font-weight: 900; margin-bottom: 12px; }
+  .final-box p  { font-size: 0.9rem; opacity: .85; line-height: 1.7; }
+
+  @media (max-width: 600px) {
+    .cover { padding: 40px 20px 36px; }
+    .cover h1 { font-size: 1.6rem; }
+    .wrapper { padding: 0 12px 40px; }
+    .pricing-grid, .channel-grid, .usp-grid, .team-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ COVER ═══════════════════════ -->
+<div class="cover">
+  <div class="wrapper" style="padding-bottom:0;">
+    <div class="cover-badge">📋 기밀 내부 문서 · 수익화 전략</div>
+    <h1>반반 <span>BanBan</span><br/>수익화 전략 팀 회의</h1>
+    <p class="subtitle">광고팀 × 기획팀 합동 전략 회의 — 전체 보고서</p>
+    <div class="cover-meta">
+      <span>📅 2026년 6월 1일 (월)</span>
+      <span>🕐 오전 10:00 — 12:30</span>
+      <span>👥 참석 5명</span>
+      <span>📍 반반 스튜디오</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrapper">
+
+<!-- ═══════════════════════ 팀 소개 ═══════════════════════ -->
+<div class="section-head" style="margin-top:36px;">
+  <div class="section-icon" style="background:#eef2ff;">👥</div>
+  <div><h2>오늘 회의 참석자</h2><p>광고팀 · 기획팀 · 수익화팀 전원</p></div>
+</div>
+
+<div class="team-grid">
+  <div class="member-card">
+    <div class="member-avatar" style="background:#eef2ff;">🧑‍💼</div>
+    <div class="member-name">이준혁</div>
+    <div class="member-role">기획팀장 · PM</div>
+    <div class="member-badge" style="background:#eef2ff;color:#4338ca;">전략 총괄</div>
+  </div>
+  <div class="member-card">
+    <div class="member-avatar" style="background:#fdf4ff;">👩‍🎨</div>
+    <div class="member-name">박소연</div>
+    <div class="member-role">마케팅팀장</div>
+    <div class="member-badge" style="background:#fdf4ff;color:#7c3aed;">브랜드·채널</div>
+  </div>
+  <div class="member-card">
+    <div class="member-avatar" style="background:#f0fdf4;">🧑‍💻</div>
+    <div class="member-name">김도윤</div>
+    <div class="member-role">콘텐츠 기획자</div>
+    <div class="member-badge" style="background:#f0fdf4;color:#16a34a;">스토리텔링</div>
+  </div>
+  <div class="member-card">
+    <div class="member-avatar" style="background:#fffbeb;">👩‍🔬</div>
+    <div class="member-name">최아리</div>
+    <div class="member-role">수익화 전략가</div>
+    <div class="member-badge" style="background:#fffbeb;color:#d97706;">가격 설계</div>
+  </div>
+  <div class="member-card">
+    <div class="member-avatar" style="background:#f0f9ff;">🧑‍🎨</div>
+    <div class="member-name">정민수</div>
+    <div class="member-role">성장 디자이너</div>
+    <div class="member-badge" style="background:#f0f9ff;color:#0284c7;">UX·전환율</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ 아젠다 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#f0fdf4;">📌</div>
+  <div><h2>회의 아젠다</h2><p>총 4개 세션으로 진행</p></div>
+</div>
+<div class="card" style="padding:0; overflow:hidden;">
+  <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr));">
+    <div style="padding:16px 18px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6;">
+      <div style="font-size:0.72rem;font-weight:800;color:#6b7280;letter-spacing:.5px;">SESSION 1</div>
+      <div style="font-weight:800;margin:4px 0 2px;">우리만의 무기</div>
+      <div style="font-size:0.8rem;color:#6b7280;">진짜 차별점 정의</div>
+    </div>
+    <div style="padding:16px 18px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6;">
+      <div style="font-size:0.72rem;font-weight:800;color:#6b7280;letter-spacing:.5px;">SESSION 2</div>
+      <div style="font-weight:800;margin:4px 0 2px;">무료 / 유료 설계</div>
+      <div style="font-size:0.8rem;color:#6b7280;">플랜 구조 · 가격</div>
+    </div>
+    <div style="padding:16px 18px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6;">
+      <div style="font-size:0.72rem;font-weight:800;color:#6b7280;letter-spacing:.5px;">SESSION 3</div>
+      <div style="font-weight:800;margin:4px 0 2px;">채널 전략</div>
+      <div style="font-size:0.8rem;color:#6b7280;">SNS · 입소문 · B2B</div>
+    </div>
+    <div style="padding:16px 18px; border-bottom:1px solid #f3f4f6;">
+      <div style="font-size:0.72rem;font-weight:800;color:#6b7280;letter-spacing:.5px;">SESSION 4</div>
+      <div style="font-weight:800;margin:4px 0 2px;">실행 로드맵</div>
+      <div style="font-size:0.8rem;color:#6b7280;">90일 액션 플랜</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ SESSION 1 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#fdf4ff;">🏆</div>
+  <div><h2>SESSION 1 — 우리만의 진짜 무기는 무엇인가?</h2><p>경쟁사 대비 차별점 도출</p></div>
+</div>
+
+<div class="chat-wrap">
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#eef2ff;">🧑‍💼</div>
+    <div class="bubble-body">
+      <div class="bubble-who">이준혁 (기획팀장) <span class="tag" style="background:#eef2ff;color:#4338ca;">진행</span></div>
+      <div class="bubble">
+        오늘 회의 목표를 먼저 분명히 하고 싶어요. 우리가 지금 만들고 있는 반반은 단순히 앱이 아니에요. <strong>선생님이 직접 만든, 자기 학생들을 위한 맞춤 학습 도구</strong>입니다. 이걸 마케팅에서 절대 잊으면 안 돼요. 그리고 오늘 제가 가장 중요하게 생각하는 건 — <em>속임수 없이, 진짜 우리가 줄 수 있는 것만 약속하는 것</em>입니다. 그게 장기적으로 우리 브랜드를 살리는 길이에요.
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#fdf4ff;">👩‍🎨</div>
+    <div class="bubble-body">
+      <div class="bubble-who">박소연 (마케팅팀장) <span class="tag" style="background:#fdf4ff;color:#7c3aed;">마케팅</span></div>
+      <div class="bubble">
+        동의해요. 저도 경쟁 앱들 다 써봤는데요, <strong>Duolingo는 재미있지만 내신 성적이랑 연결이 없어요.</strong> Quizlet은 플래시카드만 있고 AI가 없고요. 클래스팅은 LMS인데 영어 특화가 아니에요. 우리는 뭘 갖고 있냐 — <em>교사가 만든 내신 특화 교재 + AI가 틀린 것만 골라서 복습시키는 시스템</em>이에요. 이게 진짜 무기라고 생각해요.
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#f0fdf4;">🧑‍💻</div>
+    <div class="bubble-body">
+      <div class="bubble-who">김도윤 (콘텐츠 기획자) <span class="tag" style="background:#f0fdf4;color:#16a34a;">콘텐츠</span></div>
+      <div class="bubble">
+        저는 학생 입장에서 생각했을 때 가장 특별한 게 <em>"망각 곡선 자동화"</em>라고 봐요. 공부하고 나서 언제 다시 봐야 하는지 아무도 안 알려주잖아요. 반반은 SM-2 알고리즘으로 내가 틀린 단어, 틀린 문장을 딱 까먹기 직전에 자동으로 보여줘요. 다른 앱들은 이거 안 해요. 이걸 학생들한테 이렇게 말하면 어때요 — <strong>"공부했는데 시험에서 까먹었던 적 있죠? 반반은 까먹기 전에 먼저 알려줍니다."</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#fffbeb;">👩‍🔬</div>
+    <div class="bubble-body">
+      <div class="bubble-who">최아리 (수익화 전략가) <span class="tag" style="background:#fffbeb;color:#d97706;">수익화</span></div>
+      <div class="bubble">
+        저는 학부모 관점을 추가하고 싶어요. 학부모가 내는 돈이잖아요. 학부모가 원하는 건 두 가지예요 — <strong>내 아이가 제대로 공부하고 있는지 알고 싶다</strong>, 그리고 <strong>선생님이 내 아이를 개인적으로 신경 써주는지 알고 싶다</strong>. 우리가 그걸 다 충족시켜요. 주간 리포트 이메일로 부모님께 "이번 주 OO가 단어 87개 틀렸는데, 이걸 집중 복습하고 있어요"라는 내용이 가요. 이게 학원 선생님이 일일이 전화하는 것보다 더 정확하고 더 신뢰감을 줘요.
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#f0f9ff;">🧑‍🎨</div>
+    <div class="bubble-body">
+      <div class="bubble-who">정민수 (성장 디자이너) <span class="tag" style="background:#f0f9ff;color:#0284c7;">UX</span></div>
+      <div class="bubble">
+        저는 설계 관점에서 보면, 우리는 <em>학생·선생님·학부모를 하나의 루프로 연결하는 유일한 앱</em>이에요. 학생이 퀴즈를 풀면 → 선생님 대시보드에 실시간 반영 → AI가 선생님에게 "이 학생 이 부분 집중 지도 필요합니다" 알려주고 → 학부모한테 주간 이메일 리포트 가고. 이 삼각형 루프를 경쟁사 중에 구현한 데가 없어요. 이걸 시각적으로 보여주는 게 마케팅 핵심이 될 것 같아요.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="decision">
+  <div class="label">✅ SESSION 1 결론 — 우리만의 5가지 핵심 무기</div>
+  도출된 차별점을 아래 USP 카드로 정리합니다.
+</div>
+
+<div class="usp-grid">
+  <div class="usp-card">
+    <div class="usp-icon">🔁</div>
+    <div class="usp-title">망각 곡선 자동 복습</div>
+    <div class="usp-body">SM-2 알고리즘이 <strong>틀린 항목만</strong> 골라 까먹기 직전에 자동 복습 스케줄링. 수동으로 복습 계획 세울 필요 없음.</div>
+    <div class="usp-vs">❌ Duolingo·Quizlet: 이 기능 없음</div>
+  </div>
+  <div class="usp-card">
+    <div class="usp-icon">🔺</div>
+    <div class="usp-title">교사-학생-학부모 삼각 루프</div>
+    <div class="usp-body">학생 학습 → 선생님 실시간 모니터링 → AI 추천 → 학부모 주간 이메일까지 <strong>하나의 연결된 생태계.</strong></div>
+    <div class="usp-vs">❌ 경쟁 앱: 단방향 학습만 제공</div>
+  </div>
+  <div class="usp-card">
+    <div class="usp-icon">🎯</div>
+    <div class="usp-title">내신 특화 교재 연동</div>
+    <div class="usp-body">일반 영어가 아닌 <strong>담당 선생님이 직접 업로드한 교재</strong> 기반 학습. 내신 시험과 100% 연결됨.</div>
+    <div class="usp-vs">❌ 범용 앱: 커리큘럼 연결 불가</div>
+  </div>
+  <div class="usp-card">
+    <div class="usp-icon">🤖</div>
+    <div class="usp-title">AI 맞춤 학습 추천</div>
+    <div class="usp-body">선생님 대시보드에서 AI가 학생별로 <strong>"이 학생은 관계대명사 집중 지도 필요"</strong> 등 구체적 가이드 제공.</div>
+    <div class="usp-vs">❌ 클래스팅·EBS: AI 개인화 없음</div>
+  </div>
+  <div class="usp-card">
+    <div class="usp-icon">🔊</div>
+    <div class="usp-title">원어민 TTS 즉시 발음</div>
+    <div class="usp-body">모든 단어·문장에서 버튼 하나로 <strong>원어민 발음</strong> 즉시 재생. 영어 발음 교정을 앱 안에서 해결.</div>
+    <div class="usp-vs">❌ 국내 앱 대부분: TTS 없거나 유료 별도</div>
+  </div>
+  <div class="usp-card">
+    <div class="usp-icon">📊</div>
+    <div class="usp-title">4모듈 원스톱 플랫폼</div>
+    <div class="usp-body">단어·문법·내신문제·기출문제를 <strong>하나의 앱에서</strong> 모두 학습. 앱을 여러 개 깔 필요 없음.</div>
+    <div class="usp-vs">❌ 경쟁 앱: 기능별 파편화</div>
+  </div>
+</div>
+
+
+<hr class="divider"/>
+
+<!-- ═══════════════════════ SESSION 2 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#fffbeb;">💰</div>
+  <div><h2>SESSION 2 — 무료 / 유료 플랜 설계</h2><p>"무엇을 무료로 주고 무엇을 팔 것인가"</p></div>
+</div>
+
+<div class="chat-wrap">
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#fffbeb;">👩‍🔬</div>
+    <div class="bubble-body">
+      <div class="bubble-who">최아리 (수익화 전략가)</div>
+      <div class="bubble">
+        가격 설계의 황금 법칙을 먼저 말씀드릴게요. <strong>"무료는 진짜 가치를 맛보게 해야 하고, 유료는 그 가치를 완성시켜야 한다."</strong> 무료를 너무 막아두면 아무도 안 써요. 너무 풀면 유료 전환이 안 돼요. 저는 <em>학생 플랜은 낮게 잡고, 선생님/학원 플랜에서 진짜 매출을 내는 구조</em>를 제안해요. 학원 원장한테 "반 전체 학생 관리 + 학부모 소통 자동화"가 얼마짜리 가치냐를 물으면 답이 나와요.
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#eef2ff;">🧑‍💼</div>
+    <div class="bubble-body">
+      <div class="bubble-who">이준혁 (기획팀장)</div>
+      <div class="bubble">
+        그 방향 맞아요. 그리고 가격에서 <em>절대 속임수를 쓰지 않겠다</em>는 원칙도 세워요. "무료 체험 후 자동 결제" 같은 건 안 해요. 구독 해지도 1클릭으로. 청구서는 명확하게. 이게 우리 브랜드를 지키는 방법이에요. 학부모가 한번 신뢰를 잃으면 다시는 안 와요.
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#fdf4ff;">👩‍🎨</div>
+    <div class="bubble-body">
+      <div class="bubble-who">박소연 (마케팅팀장)</div>
+      <div class="bubble">
+        가격대 이야기 해볼게요. 학원비 평균이 중학생 기준 <strong>월 12~20만 원</strong>이에요. 우리 앱이 그 학원을 보조하는 도구라면, <strong>월 9,900원</strong>은 학부모 입장에서 "커피 한 잔값"이에요. 심리적 저항이 거의 없어요. 선생님 플랜은 학원 원장 관점에서 — 학부모 상담 시간 절약 + 학생 관리 자동화니까 <strong>월 49,000원</strong>도 충분히 납득해요.
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#f0f9ff;">🧑‍🎨</div>
+    <div class="bubble-body">
+      <div class="bubble-who">정민수 (성장 디자이너)</div>
+      <div class="bubble">
+        중요한 건 <em>무료에서 유료로 넘어가는 순간</em>을 설계하는 거예요. 예를 들어 무료 사용자가 5일 연속 학습 후에 "이번 주 복습 일정이 쌓였어요. 프리미엄에서 자동 복습 받아보세요" 라는 딱 맞는 타이밍에 업그레이드 제안을 해요. 또 선생님이 10명 학생 데이터를 보다가 더 많은 분석이 필요할 때 자연스럽게 연결해요. <strong>강요가 아니라 필요를 느끼게 만드는 것.</strong>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="decision" style="border-color:var(--amber);background:var(--amber-l);">
+  <div class="label" style="color:var(--amber);">✅ SESSION 2 결론 — 플랜 구조 확정</div>
+  3단계 플랜: 무료(학생 기본) / 프리미엄(학생 완전판) / 선생님·학원 플랜
+</div>
+
+<!-- PRICING TABLE -->
+<div class="pricing-grid" style="margin-top:8px;">
+
+  <!-- FREE -->
+  <div class="price-card">
+    <div class="price-tier">🆓 FREE</div>
+    <div class="price-amount">₩0<sub>/월</sub></div>
+    <div class="price-desc">누구나 시작. 핵심 기능 체험.</div>
+    <ul class="price-features">
+      <li><span class="check">✓</span> 학습 노트 1개 (교재 1권)</li>
+      <li><span class="check">✓</span> 단어 플래시카드 (무제한)</li>
+      <li><span class="check">✓</span> 하루 퀴즈 5회</li>
+      <li><span class="check">✓</span> 기본 오답 저장</li>
+      <li><span class="check">✓</span> 클래스 랭킹 보기</li>
+      <li><span class="cross">✗</span> TTS 발음 (잠김)</li>
+      <li><span class="cross">✗</span> AI 자동 복습 스케줄</li>
+      <li><span class="cross">✗</span> 상세 학습 대시보드</li>
+      <li><span class="cross">✗</span> AI 오답 해설</li>
+    </ul>
+    <div style="margin-top:14px;padding:10px;background:var(--gray-50);border-radius:8px;font-size:0.78rem;color:var(--gray-700);">
+      💡 <strong>목적:</strong> 진입 장벽 제거 + 학습 습관 형성
+    </div>
+  </div>
+
+  <!-- STUDENT PREMIUM -->
+  <div class="price-card featured">
+    <div class="price-badge">가장 인기</div>
+    <div class="price-tier">⭐ 학생 프리미엄</div>
+    <div class="price-amount">₩9,900<sub>/월</sub></div>
+    <div class="price-desc">완전한 AI 학습 파트너.</div>
+    <ul class="price-features">
+      <li><span class="check">✓</span> 노트 <strong>무제한</strong> (교재 여러 권)</li>
+      <li><span class="check">✓</span> 퀴즈 <strong>무제한</strong></li>
+      <li><span class="star">★</span> <strong>TTS 원어민 발음</strong> (모든 단어·문장)</li>
+      <li><span class="star">★</span> <strong>SM-2 자동 복습 스케줄</strong></li>
+      <li><span class="star">★</span> <strong>AI 오답 해설</strong> (단어·문법·문제)</li>
+      <li><span class="check">✓</span> 개인 학습 대시보드</li>
+      <li><span class="check">✓</span> 주간 학습 리포트 수신</li>
+      <li><span class="check">✓</span> 클래스 랭킹 전체</li>
+    </ul>
+    <div style="margin-top:14px;padding:10px;background:var(--indigo-l);border-radius:8px;font-size:0.78rem;color:var(--indigo);">
+      💡 <strong>커피 한 잔</strong>(9,900원)으로 내신 성적 관리
+    </div>
+  </div>
+
+  <!-- TEACHER -->
+  <div class="price-card featured" style="border-color:var(--violet);">
+    <div class="price-badge" style="background:var(--violet);">핵심 수익원</div>
+    <div class="price-tier">🏫 선생님·학원 플랜</div>
+    <div class="price-amount">₩49,000<sub>/월</sub></div>
+    <div class="price-desc">학생 30명까지. 완전한 클래스 관리.</div>
+    <ul class="price-features">
+      <li><span class="check">✓</span> 학생 <strong>30명</strong> 관리</li>
+      <li><span class="star">★</span> <strong>선생님 실시간 대시보드</strong></li>
+      <li><span class="star">★</span> <strong>AI 학생별 맞춤 추천</strong></li>
+      <li><span class="star">★</span> <strong>학부모 주간 이메일 리포트</strong> 자동 발송</li>
+      <li><span class="star">★</span> <strong>클래스 랭킹</strong> 전체 관리</li>
+      <li><span class="check">✓</span> 교재 무제한 업로드</li>
+      <li><span class="check">✓</span> 초대 코드 발급</li>
+      <li><span class="check">✓</span> 학생 전원 프리미엄 포함</li>
+    </ul>
+    <div style="margin-top:14px;padding:10px;background:#fdf4ff;border-radius:8px;font-size:0.78rem;color:var(--violet);">
+      💡 학생 1명당 <strong>1,633원/월</strong> — 학원 운영 비용 대비 극초가
+    </div>
+  </div>
+
+  <!-- ACADEMY PRO -->
+  <div class="price-card">
+    <div class="price-tier">🏢 학원 Pro</div>
+    <div class="price-amount">₩99,000<sub>/월</sub></div>
+    <div class="price-desc">학생 무제한. 대형 학원 전용.</div>
+    <ul class="price-features">
+      <li><span class="check">✓</span> 학생 <strong>무제한</strong></li>
+      <li><span class="star">★</span> 선생님 계정 <strong>최대 5명</strong></li>
+      <li><span class="star">★</span> 학원 전용 브랜딩 옵션</li>
+      <li><span class="check">✓</span> 우선 기술 지원</li>
+      <li><span class="check">✓</span> 학원 단위 통계 리포트</li>
+      <li><span class="star">★</span> 커스텀 온보딩 지원</li>
+    </ul>
+    <div style="margin-top:14px;padding:10px;background:var(--green-l);border-radius:8px;font-size:0.78rem;color:var(--green);">
+      💡 학생 100명이면 학생당 <strong>990원/월</strong>
+    </div>
+  </div>
+
+</div>
+
+<div class="note-box" style="margin-top:16px;">
+  <strong>⚠️ 원칙:</strong> 무료 체험 후 자동 결제 없음 · 구독 해지 1클릭 · 환불 정책 명확 공지 · 숨겨진 요금 없음. 이건 협상 불가 원칙입니다.
+</div>
+
+
+<hr class="divider"/>
+
+<!-- ═══════════════════════ SESSION 3 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#fdf4ff;">📣</div>
+  <div><h2>SESSION 3 — 채널별 마케팅 전략</h2><p>"어디서 누구에게 어떻게 말할 것인가"</p></div>
+</div>
+
+<div class="chat-wrap">
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#fdf4ff;">👩‍🎨</div>
+    <div class="bubble-body">
+      <div class="bubble-who">박소연 (마케팅팀장)</div>
+      <div class="bubble">
+        타겟을 3가지로 나눠요. <strong>① 중학생 직접</strong> — 인스타·틱톡. <strong>② 학부모</strong> — 카카오톡·네이버 카페. <strong>③ 선생님·학원</strong> — 교사 커뮤니티·B2B. 각 타겟마다 메시지가 달라야 해요. 학생한테는 "공부가 게임처럼", 학부모한테는 "아이 성적이 눈에 보여요", 선생님한테는 "수업 준비·학부모 상담 시간이 반으로 줄어요".
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#f0fdf4;">🧑‍💻</div>
+    <div class="bubble-body">
+      <div class="bubble-who">김도윤 (콘텐츠 기획자)</div>
+      <div class="bubble">
+        콘텐츠 핵심 스토리를 하나 잡아야 해요. 제가 제안하는 메인 스토리: <em>"내 선생님이 만든 앱으로 공부했더니 내신 등급이 올랐어요."</em><br/><br/>
+        이게 강력한 이유가 — 첫째, 실제 담당 선생님이 만든 교재라 진짜 내신과 연결됨. 둘째, AI가 내가 틀린 것만 반복시켜줌. 셋째, 엄마한테 리포트 가니까 "열심히 하고 있다"는 증거가 생김. <strong>이 세 가지가 기존 앱에서 동시에 되는 곳이 없어요.</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#eef2ff;">🧑‍💼</div>
+    <div class="bubble-body">
+      <div class="bubble-who">이준혁 (기획팀장)</div>
+      <div class="bubble">
+        한 가지 강조하고 싶어요. 광고에서 <em>"성적이 오른다"는 확정 표현을 쓰지 말자</em>는 거예요. "내신 10점 상승 보장!" 이런 건 우리 원칙에 어긋나요. 대신 <strong>"틀린 문제를 반복해서 기억할 수 있도록 돕습니다"</strong>, <strong>"선생님이 실시간으로 확인하는 학습 습관"</strong> — 이런 식으로 진실만 말해야 해요. 그게 장기적으로 훨씬 더 강한 신뢰를 줘요.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="channel-grid" style="margin-top:16px;">
+
+  <div class="channel-card">
+    <div class="channel-head">
+      <div class="channel-icon">📸</div>
+      <div>
+        <div class="channel-name">인스타그램 릴스</div>
+        <div class="channel-who">🎯 중학생 직접 타겟</div>
+      </div>
+    </div>
+    <div class="channel-action">
+      <strong>콘텐츠 아이디어:</strong><br/>
+      • "단어 외웠는데 시험장에서 까먹은 경험?" → 반반 복습 시스템 소개<br/>
+      • 실제 학생이 앱 쓰는 15초 영상<br/>
+      • 내신 D-7 공부법 시리즈 (앱 자연스럽게 등장)<br/>
+      • 클래스 랭킹 1위 달성 순간 공유
+    </div>
+    <div class="channel-kpi">📊 목표: 팔로워 1,000명 → 월간 50명 무료 가입</div>
+  </div>
+
+  <div class="channel-card">
+    <div class="channel-head">
+      <div class="channel-icon">🎵</div>
+      <div>
+        <div class="channel-name">틱톡 / 유튜브 쇼츠</div>
+        <div class="channel-who">🎯 중학생 · Z세대</div>
+      </div>
+    </div>
+    <div class="channel-action">
+      <strong>콘텐츠 아이디어:</strong><br/>
+      • "이 단어 알아?" TTS 발음 테스트 영상<br/>
+      • "망각 곡선이 뭔지 알아요?" 10초 설명<br/>
+      • 공부 브이로그에 앱 자연스럽게 포함<br/>
+      • Before/After — "한 달 전 vs 지금 단어 오답 수"
+    </div>
+    <div class="channel-kpi">📊 바이럴 목표: 영상 1개 10만 뷰 → 5천 명 가입</div>
+  </div>
+
+  <div class="channel-card">
+    <div class="channel-head">
+      <div class="channel-icon">💬</div>
+      <div>
+        <div class="channel-name">카카오톡 채널</div>
+        <div class="channel-who">🎯 학부모</div>
+      </div>
+    </div>
+    <div class="channel-action">
+      <strong>콘텐츠 아이디어:</strong><br/>
+      • 매주 월요일 "이번 주 아이 학습 팁" 발송<br/>
+      • 주간 리포트 샘플 보여주기<br/>
+      • "우리 아이 영어 성적 왜 안 오를까?" 칼럼<br/>
+      • 학부모 Q&A (반반쌤 직접 답변)
+    </div>
+    <div class="channel-kpi">📊 채널 구독자 목표: 3개월 내 500명</div>
+  </div>
+
+  <div class="channel-card">
+    <div class="channel-head">
+      <div class="channel-icon">📰</div>
+      <div>
+        <div class="channel-name">네이버 블로그 · 카페</div>
+        <div class="channel-who">🎯 학부모 · 교사</div>
+      </div>
+    </div>
+    <div class="channel-action">
+      <strong>콘텐츠 아이디어:</strong><br/>
+      • "중학생 영어 내신 앱 비교 (반반 vs Quizlet vs Duolingo)"<br/>
+      • 교육맘 카페 후기 공유 프로그램<br/>
+      • "망각 곡선이란?" SEO 최적화 글<br/>
+      • 반반 사용 후기 이벤트
+    </div>
+    <div class="channel-kpi">📊 월 방문자 목표: 3,000명 → 150명 가입</div>
+  </div>
+
+  <div class="channel-card">
+    <div class="channel-head">
+      <div class="channel-icon">🏫</div>
+      <div>
+        <div class="channel-name">교사 커뮤니티 B2B</div>
+        <div class="channel-who">🎯 선생님 · 학원장</div>
+      </div>
+    </div>
+    <div class="channel-action">
+      <strong>채널:</strong> 인디스쿨, 티처빌, 교원 단톡방<br/>
+      <strong>메시지:</strong><br/>
+      • "학부모 상담 시간 50% 줄이는 방법"<br/>
+      • 선생님 플랜 30일 무료 체험 제공<br/>
+      • "내 교재 그대로 올리면 AI가 다 해줍니다"<br/>
+      • 교사 추천 프로그램 (소개 시 1개월 무료)
+    </div>
+    <div class="channel-kpi">📊 선생님 10명 확보 → 학생 300명 자동 유입</div>
+  </div>
+
+  <div class="channel-card">
+    <div class="channel-head">
+      <div class="channel-icon">🗣️</div>
+      <div>
+        <div class="channel-name">입소문 (바이럴) 프로그램</div>
+        <div class="channel-who">🎯 기존 사용자</div>
+      </div>
+    </div>
+    <div class="channel-action">
+      <strong>설계:</strong><br/>
+      • 친구 초대 시 양쪽 1개월 무료 연장<br/>
+      • 학급 전체 가입 시 선생님 플랜 1개월 무료<br/>
+      • "우리 반 1등" 클래스 랭킹 스크린샷 공유 유도<br/>
+      • 학부모 리포트 캡처 공유 → 자연스러운 광고
+    </div>
+    <div class="channel-kpi">📊 바이럴 계수(K-factor) 목표: 0.4 이상</div>
+  </div>
+
+</div>
+
+
+<hr class="divider"/>
+
+<!-- ═══════════════════════ SESSION 4 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#f0fdf4;">🗺️</div>
+  <div><h2>SESSION 4 — 90일 실행 로드맵</h2><p>지금 당장 무엇부터 시작할 것인가</p></div>
+</div>
+
+<div class="chat-wrap">
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#eef2ff;">🧑‍💼</div>
+    <div class="bubble-body">
+      <div class="bubble-who">이준혁 (기획팀장)</div>
+      <div class="bubble">
+        90일을 3단계로 나눠요. <strong>1단계(1-30일): 기반 다지기</strong> — 랜딩 페이지, 카카오 채널, 선생님 베타 모집. <strong>2단계(31-60일): 파종</strong> — 콘텐츠 공장 돌리기, 교사 10명 확보, 학원 파트너십. <strong>3단계(61-90일): 수확</strong> — 유료 전환 캠페인, 입소문 프로그램 런칭.
+      </div>
+    </div>
+  </div>
+  <div class="bubble-row">
+    <div class="avatar-sm" style="background:#f0f9ff;">🧑‍🎨</div>
+    <div class="bubble-body">
+      <div class="bubble-who">정민수 (성장 디자이너)</div>
+      <div class="bubble">
+        앱 안에서 전환을 높이는 UX도 같이 가야 해요. 무료 사용자가 <strong>"SM-2 복습 알림"</strong>을 처음 받는 순간이 가장 강력한 업그레이드 타이밍이에요. 그 순간에 "지금 틀린 단어 12개가 복습 대기 중이에요. 프리미엄으로 자동 관리해보세요" 라는 카드를 자연스럽게 보여주면 돼요. <em>사용자가 스스로 가치를 느껴서 지갑을 여는 구조.</em>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;margin-top:4px;">
+  <div style="padding:14px 18px;background:var(--gray-50);border-bottom:1px solid var(--gray-300);">
+    <strong style="font-size:0.9rem;">📋 90일 실행 로드맵</strong>
+  </div>
+  <div style="padding:20px 22px;">
+    <div class="timeline">
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#4338ca;color:#4338ca;"></div>
+        <div class="tl-month">1주차 — 즉시 실행</div>
+        <div class="tl-task">랜딩 페이지 제작</div>
+        <div class="tl-desc">반반 공식 소개 페이지. 차별점 3가지 명확히. 무료 시작 CTA. 선생님 베타 신청 폼.</div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#4338ca;color:#4338ca;"></div>
+        <div class="tl-month">2주차</div>
+        <div class="tl-task">카카오톡 채널 개설 + 첫 콘텐츠 5개 발행</div>
+        <div class="tl-desc">학부모 대상 "반반 가이드" 카드뉴스. 인스타 계정 개설. 첫 릴스 3개 촬영.</div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#7c3aed;color:#7c3aed;"></div>
+        <div class="tl-month">3-4주차</div>
+        <div class="tl-task">선생님 베타 테스터 10명 모집</div>
+        <div class="tl-desc">인디스쿨·교사 단톡방에서 "무료 선생님 플랜 3개월 제공" 조건으로 베타 모집. 피드백 수집.</div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#0284c7;color:#0284c7;"></div>
+        <div class="tl-month">5-7주차</div>
+        <div class="tl-task">콘텐츠 공장 본격 가동</div>
+        <div class="tl-desc">주 3회 인스타 릴스. 주 2회 네이버 블로그. 월 2회 카카오 채널 뉴스레터. SEO 최적화 글 10편.</div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#16a34a;color:#16a34a;"></div>
+        <div class="tl-month">8-10주차</div>
+        <div class="tl-task">학원 파트너십 + 입소문 프로그램 런칭</div>
+        <div class="tl-desc">지역 학원 3곳 파트너 계약. 친구 초대 프로그램 앱 내 추가. 베타 사용자 후기 수집 + 공개.</div>
+      </div>
+
+      <div class="tl-item">
+        <div class="tl-dot" style="background:#d97706;color:#d97706;"></div>
+        <div class="tl-month">11-13주차</div>
+        <div class="tl-task">첫 유료 전환 캠페인</div>
+        <div class="tl-desc">"개학 특가" 이벤트. 선생님 플랜 첫 달 50% 할인. 학생 플랜 3개월 결제 시 1개월 무료.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<hr class="divider"/>
+
+<!-- ═══════════════════════ 액션 아이템 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#f0fdf4;">✅</div>
+  <div><h2>액션 아이템 — 담당자 배정</h2><p>회의에서 결정된 즉시 실행 과제</p></div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="action-table">
+    <thead>
+      <tr>
+        <th>우선순위</th>
+        <th>과제</th>
+        <th>담당</th>
+        <th>마감</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="priority-high">🔴 긴급</span></td>
+        <td><strong>랜딩 페이지 제작</strong><br/><span style="font-size:0.78rem;color:#6b7280;">차별점 3가지, 무료 시작 CTA, 선생님 베타 신청</span></td>
+        <td>정민수 + 김도윤</td>
+        <td>1주 이내</td>
+      </tr>
+      <tr>
+        <td><span class="priority-high">🔴 긴급</span></td>
+        <td><strong>카카오톡 채널 개설</strong><br/><span style="font-size:0.78rem;color:#6b7280;">첫 콘텐츠 5개 준비 후 개설</span></td>
+        <td>박소연</td>
+        <td>1주 이내</td>
+      </tr>
+      <tr>
+        <td><span class="priority-high">🔴 긴급</span></td>
+        <td><strong>가격 정책 앱에 반영</strong><br/><span style="font-size:0.78rem;color:#6b7280;">무료/프리미엄/선생님 플랜 Supabase 스키마 설계</span></td>
+        <td>이준혁 (개발)</td>
+        <td>2주 이내</td>
+      </tr>
+      <tr>
+        <td><span class="priority-mid">🟡 중요</span></td>
+        <td><strong>인스타그램 계정 개설 + 첫 릴스 3개</strong><br/><span style="font-size:0.78rem;color:#6b7280;">앱 사용 영상 + 망각 곡선 설명 + 학부모 리포트 소개</span></td>
+        <td>박소연 + 김도윤</td>
+        <td>2주 이내</td>
+      </tr>
+      <tr>
+        <td><span class="priority-mid">🟡 중요</span></td>
+        <td><strong>선생님 베타 모집 10명</strong><br/><span style="font-size:0.78rem;color:#6b7280;">교사 커뮤니티 게시, 3개월 무료 제공 조건</span></td>
+        <td>이준혁 + 박소연</td>
+        <td>3주 이내</td>
+      </tr>
+      <tr>
+        <td><span class="priority-mid">🟡 중요</span></td>
+        <td><strong>네이버 블로그 SEO 글 10편</strong><br/><span style="font-size:0.78rem;color:#6b7280;">망각 곡선, 중학생 영어 내신, 오답노트 키워드</span></td>
+        <td>김도윤</td>
+        <td>4주 이내</td>
+      </tr>
+      <tr>
+        <td><span class="priority-low">🟢 계획</span></td>
+        <td><strong>앱 내 업그레이드 UX 설계</strong><br/><span style="font-size:0.78rem;color:#6b7280;">복습 알림 트리거 시점에 프리미엄 전환 카드</span></td>
+        <td>정민수</td>
+        <td>5주 이내</td>
+      </tr>
+      <tr>
+        <td><span class="priority-low">🟢 계획</span></td>
+        <td><strong>친구 초대 프로그램 개발</strong><br/><span style="font-size:0.78rem;color:#6b7280;">양쪽 1개월 무료 연장 로직 구현</span></td>
+        <td>이준혁 (개발)</td>
+        <td>6주 이내</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════ 매출 시뮬레이션 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#fffbeb;">📈</div>
+  <div><h2>현실적 매출 시뮬레이션</h2><p>보수적 추정 — 6개월 후 목표</p></div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+  <div class="card" style="text-align:center;">
+    <div style="font-size:0.78rem;color:#6b7280;font-weight:700;margin-bottom:6px;">무료 사용자</div>
+    <div style="font-size:1.8rem;font-weight:900;color:#374151;">500명</div>
+    <div style="font-size:0.78rem;color:#6b7280;">₩0 / 월</div>
+  </div>
+  <div class="card" style="text-align:center;border-color:var(--indigo);">
+    <div style="font-size:0.78rem;color:var(--indigo);font-weight:700;margin-bottom:6px;">학생 프리미엄</div>
+    <div style="font-size:1.8rem;font-weight:900;color:var(--indigo);">100명</div>
+    <div style="font-size:0.78rem;color:#6b7280;">× ₩9,900 = <strong style="color:var(--indigo);">990,000원</strong></div>
+  </div>
+  <div class="card" style="text-align:center;border-color:var(--violet);">
+    <div style="font-size:0.78rem;color:var(--violet);font-weight:700;margin-bottom:6px;">선생님 플랜</div>
+    <div style="font-size:1.8rem;font-weight:900;color:var(--violet);">10개</div>
+    <div style="font-size:0.78rem;color:#6b7280;">× ₩49,000 = <strong style="color:var(--violet);">490,000원</strong></div>
+  </div>
+  <div class="card" style="text-align:center;border-color:var(--green);">
+    <div style="font-size:0.78rem;color:var(--green);font-weight:700;margin-bottom:6px;">학원 Pro</div>
+    <div style="font-size:1.8rem;font-weight:900;color:var(--green);">2개</div>
+    <div style="font-size:0.78rem;color:#6b7280;">× ₩99,000 = <strong style="color:var(--green);">198,000원</strong></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#86efac;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:0.8rem;font-weight:700;color:#16a34a;margin-bottom:2px;">💰 6개월 후 월 예상 매출</div>
+      <div style="font-size:2.2rem;font-weight:900;color:#15803d;">1,678,000원/월</div>
+      <div style="font-size:0.8rem;color:#16a34a;">→ 1년 후 목표: 월 500만 원 (선생님 50개 학원 기준)</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:0.78rem;color:#6b7280;margin-bottom:4px;">핵심 통찰</div>
+      <div style="font-size:0.88rem;font-weight:700;color:#374151;">선생님 1명 = 학생 30명 자동 유입<br/>선생님 50명 = 학생 1,500명 기반</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ 브랜드 원칙 ═══════════════════════ -->
+<div class="section-head">
+  <div class="section-icon" style="background:#fff7ed;">❤️</div>
+  <div><h2>반반이 절대 하지 않는 것</h2><p>우리 브랜드를 지키는 원칙들</p></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;">
+    <div style="font-size:0.75rem;font-weight:800;color:#dc2626;margin-bottom:8px;">❌ 절대 하지 않는 것</div>
+    <ul style="list-style:none;padding:0;font-size:0.83rem;line-height:2;">
+      <li>❌ "성적 보장" "10점 상승 보장" 등 확정 표현</li>
+      <li>❌ 무료 체험 후 자동 결제 트릭</li>
+      <li>❌ 과장된 사용자 수 / 후기 조작</li>
+      <li>❌ 해지 어렵게 만드는 UI</li>
+      <li>❌ 숨겨진 추가 요금</li>
+      <li>❌ 학생 데이터 제3자 판매</li>
+    </ul>
+  </div>
+  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;">
+    <div style="font-size:0.75rem;font-weight:800;color:#16a34a;margin-bottom:8px;">✅ 반드시 지키는 것</div>
+    <ul style="list-style:none;padding:0;font-size:0.83rem;line-height:2;">
+      <li>✅ 진짜 기능만 소개하는 정직한 마케팅</li>
+      <li>✅ 구독 해지 1클릭, 즉시 처리</li>
+      <li>✅ 개인정보 처리 방침 명확 공지</li>
+      <li>✅ 사용자 피드백 72시간 내 응답</li>
+      <li>✅ 부모님도 언제든지 삭제 요청 가능</li>
+      <li>✅ 선생님·학생 관계에서 신뢰가 최우선</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ CLOSING ═══════════════════════ -->
+<div class="final-box">
+  <h3>🌙 회의를 마치며 — 기획팀장 이준혁</h3>
+  <p>
+    오늘 우리가 나눈 이야기의 본질은 하나예요. <strong>반반은 "팔기 위해" 만든 앱이 아니라, "진짜로 도움이 되기 위해" 만든 앱입니다.</strong><br/><br/>
+    선생님이 밤새 교재를 만들고, AI가 학생의 약점을 분석하고, 학부모가 안심하고 아이를 믿을 수 있는 시스템. 이게 우리가 파는 것이에요.<br/><br/>
+    마케팅에서 과장하지 말고, 가격에서 속이지 말고, 기능에서 거짓말하지 맙시다.
+    <strong>진심이 담긴 제품은 반드시 입소문이 납니다.</strong> 우리는 그것만 믿고 갑니다.
+  </p>
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.2);font-size:0.8rem;opacity:.6;display:flex;gap:20px;flex-wrap:wrap;">
+    <span>📝 회의록 작성: 김도윤</span>
+    <span>📅 다음 회의: 4주 후 — 베타 선생님 피드백 리뷰</span>
+    <span>🔒 내부 기밀 문서</span>
+  </div>
+</div>
+
+</div><!-- /wrapper -->
+</body>
+</html>
