@@ -7,12 +7,12 @@ from dotenv import load_dotenv
 from streamlit_option_menu import option_menu
 
 from generator   import generate, generate_combined, sheet_preview
-from library     import save_note, list_notes, get_note, delete_note, get_all_values, update_note, duplicate_note
+from library     import save_note, list_notes, get_note, delete_note, get_all_values, update_note, duplicate_note, count_my_notes
 from sample_data import SAMPLE_WORDS, SAMPLE_DIALOGUES, SAMPLE_TEXT
 from icons       import icon, title_md, section_md, confirm_delete_btn, ctype_tag, tag
 from study_db    import get_or_create_student, list_students, init_db as study_init_db
 from chatbot     import render_chatbot
-from plans       import current_plan, has_plan, can_use_ai, upgrade_banner, ai_usage_bar, checkout_url
+from plans       import current_plan, has_plan, can_use_ai, upgrade_banner, ai_usage_bar, checkout_url, can_create_note
 
 study_init_db()  # 학습 DB 초기화 (Supabase 전환 후 no-op)
 
@@ -2245,6 +2245,23 @@ def page_library():
     if st.session_state.pop("lib_dup_toast", None) is not None:
         st.success("노트를 복제했어요. 목록에서 '(복사본)'을 찾아 자유롭게 수정하세요.")
 
+    # ── 현재 사용자 + 뷰 선택 (내 노트 / 공용 자료실) ──────────────
+    _lib_user = _auth.current_user()
+    _lib_uid  = _lib_user.id if _lib_user else None
+    _lib_admin = _auth.current_role() == "admin"
+
+    lib_view = st.radio(
+        "보기", ["📁 내 노트", "🌐 공용 자료실"], horizontal=True, key="lib_view",
+        label_visibility="collapsed",
+    )
+    _mine_view = lib_view.startswith("📁")
+    st.caption(
+        "내가 만든 노트만 보여요. 수정·삭제할 수 있어요."
+        if _mine_view else
+        "다른 선생님들이 공개한 노트예요. '복제'로 내 것으로 가져와 수정하세요."
+    )
+    _lib_scope = "mine" if _mine_view else "public"
+
     # ── 학년 탭 ────────────────────────────────────────────────────
     _GRADE_TABS = ["전체", "중1", "중2", "중3", "고1", "고2", "고3"]
     _tab_objs   = st.tabs(_GRADE_TABS)
@@ -2275,6 +2292,8 @@ def page_library():
                 publisher    = "" if f_pub        == "전체" else f_pub,
                 content_type = "" if f_ctype      == "전체" else f_ctype,
                 search       = f_search,
+                scope        = "all" if (_lib_admin and _mine_view) else _lib_scope,
+                owner_id     = _lib_uid,
             )
 
             hc1, hc2, _, hc4 = st.columns([2, 2, 2, 4])
@@ -2326,7 +2345,7 @@ def page_library():
                 nid = note["id"]
 
                 # ── 노트 행 ──────────────────────────────────
-                c_chk, c_info, c_act = st.columns([1, 8, 3])
+                c_chk, c_info, c_act = st.columns([1, 7, 5])
                 with c_chk:
                     checked = st.checkbox("", value=(nid in selected), key=f"chk_{_grade_label}_{nid}")
                     if checked: selected.add(nid)
@@ -2350,55 +2369,79 @@ def page_library():
                         st.caption(f"  {note['tags']}")
 
                 with c_act:
-                    ba1, ba2, ba3, ba4 = st.columns(4)
                     is_editing  = (edit_id == nid)
                     is_printing = (st.session_state.get("lib_print_id") == nid)
+                    # 편집·삭제는 제작자(또는 관리자)만. 공용 자료실의 남 노트는 복제만.
+                    is_mine     = _lib_admin or (note.get("owner_id") == _lib_uid)
 
-                    edit_label = "닫기" if is_editing else "수정"
-                    if ba1.button(edit_label, key=f"edit_btn_{_grade_label}_{nid}", use_container_width=True):
-                        if is_editing:
-                            st.session_state["lib_edit_id"] = None
-                        else:
-                            nd_pre = get_note(nid)
-                            if nd_pre:
-                                st.session_state[f"etitle_{_grade_label}_{nid}"]  = nd_pre.get("title", "")
-                                st.session_state[f"egrade_{_grade_label}_{nid}"]  = nd_pre.get("grade", "중1")
-                                st.session_state[f"epub_{_grade_label}_{nid}"]    = nd_pre.get("publisher", "YBM")
-                                st.session_state[f"eauthor_{_grade_label}_{nid}"] = nd_pre.get("author", "")
-                                st.session_state[f"echap_{_grade_label}_{nid}"]   = nd_pre.get("chapter", "")
-                                st.session_state[f"etags_{_grade_label}_{nid}"]   = nd_pre.get("tags", "")
-                                st.session_state[f"ewi_{_grade_label}_{nid}"] = words_to_text(nd_pre.get("words", []))
-                                st.session_state[f"edi_{_grade_label}_{nid}"] = dlg_to_text(nd_pre.get("dialogues", []))
-                                td_pre = nd_pre.get("text_data", {})
-                                st.session_state[f"eti_{_grade_label}_{nid}"] = (
-                                    text_to_text(td_pre) if td_pre.get("sentences") else ""
-                                )
-                            st.session_state["lib_edit_id"] = nid
-                        st.rerun()
+                    if is_mine:
+                        bvis, ba1, ba2, ba3, ba4 = st.columns([1.8, 1, 1, 1, 1])
+                    else:
+                        ba3, ba4 = st.columns(2)
 
-                    with ba2:
-                        if confirm_delete_btn(
-                            "삭제", key=f"del_{_grade_label}_{nid}",
-                            item_name=note.get("title", ""),
-                            use_container_width=True,
-                        ):
-                            delete_note(nid)
-                            selected.discard(nid)
-                            if edit_id == nid:
+                    # ── 공용 공개 토글 (내 노트만) — 켜면 공용 자료실 공개 ──
+                    if is_mine:
+                        with bvis:
+                            _is_pub = note.get("visibility") == "public"
+                            _new_pub = st.toggle(
+                                "Public", value=_is_pub,
+                                key=f"vis_{_grade_label}_{nid}",
+                                help="켜면 공용 자료실에 공개돼 다른 선생님이 복제해 쓸 수 있어요. "
+                                     "끄면 나와 내 학생만 봐요.",
+                            )
+                            if _new_pub != _is_pub:
+                                update_note(nid, visibility="public" if _new_pub else "private")
+                                st.rerun()
+
+                    # ── 수정 (내 노트만) ─────────────────────────
+                    if is_mine:
+                        edit_label = "닫기" if is_editing else "수정"
+                        if ba1.button(edit_label, key=f"edit_btn_{_grade_label}_{nid}", use_container_width=True):
+                            if is_editing:
                                 st.session_state["lib_edit_id"] = None
+                            else:
+                                nd_pre = get_note(nid)
+                                if nd_pre:
+                                    st.session_state[f"etitle_{_grade_label}_{nid}"]  = nd_pre.get("title", "")
+                                    st.session_state[f"egrade_{_grade_label}_{nid}"]  = nd_pre.get("grade", "중1")
+                                    st.session_state[f"epub_{_grade_label}_{nid}"]    = nd_pre.get("publisher", "YBM")
+                                    st.session_state[f"eauthor_{_grade_label}_{nid}"] = nd_pre.get("author", "")
+                                    st.session_state[f"echap_{_grade_label}_{nid}"]   = nd_pre.get("chapter", "")
+                                    st.session_state[f"etags_{_grade_label}_{nid}"]   = nd_pre.get("tags", "")
+                                    st.session_state[f"ewi_{_grade_label}_{nid}"] = words_to_text(nd_pre.get("words", []))
+                                    st.session_state[f"edi_{_grade_label}_{nid}"] = dlg_to_text(nd_pre.get("dialogues", []))
+                                    td_pre = nd_pre.get("text_data", {})
+                                    st.session_state[f"eti_{_grade_label}_{nid}"] = (
+                                        text_to_text(td_pre) if td_pre.get("sentences") else ""
+                                    )
+                                st.session_state["lib_edit_id"] = nid
                             st.rerun()
 
-                    # ── 반반노트 출력 버튼 ───────────────────────
+                        # ── 삭제 (내 노트만) ─────────────────────
+                        with ba2:
+                            if confirm_delete_btn(
+                                "삭제", key=f"del_{_grade_label}_{nid}",
+                                item_name=note.get("title", ""),
+                                use_container_width=True,
+                            ):
+                                delete_note(nid)
+                                selected.discard(nid)
+                                if edit_id == nid:
+                                    st.session_state["lib_edit_id"] = None
+                                st.rerun()
+
+                    # ── 반반노트 출력 버튼 (공통) ────────────────
                     print_label = "닫기" if is_printing else "출력"
                     if ba3.button(print_label, key=f"print_btn_{_grade_label}_{nid}", use_container_width=True):
                         st.session_state["lib_print_id"] = None if is_printing else nid
                         st.rerun()
 
-                    # ── 복제 버튼 (콘텐츠 재활용) ────────────────
-                    if ba4.button("복제", key=f"dup_btn_{_grade_label}_{nid}",
+                    # ── 복제 버튼 — 내 것으로 가져오기 (공통) ────
+                    dup_label = "복제" if is_mine else "내 것으로"
+                    if ba4.button(dup_label, key=f"dup_btn_{_grade_label}_{nid}",
                                   use_container_width=True,
                                   help="이 노트를 내 사본으로 복제해 수정할 수 있어요"):
-                        new_id = duplicate_note(nid)
+                        new_id = duplicate_note(nid, owner_id=_lib_uid)
                         if new_id:
                             st.session_state["lib_dup_toast"] = note.get("title", "")
                         st.rerun()
@@ -3012,20 +3055,37 @@ def page_add_note():
             )
 
         with ba2:
+            _save_public = st.checkbox(
+                "🌐 공용 자료실에 공개", key="save_lib_public",
+                help="체크하면 다른 선생님들도 이 노트를 복제해 쓸 수 있어요. "
+                     "(내 학생은 공개 여부와 무관하게 사용 가능)",
+            )
             if st.button("라이브러리에 저장", type="primary", use_container_width=True,
                          key="save_lib_btn"):
-                nid = save_note(
-                    title        = f"{base_title} - {ct}",
-                    grade        = grade,     publisher = publisher,
-                    author       = author,    chapter   = chapter,
-                    content_type = ct,
-                    words        = w_use,
-                    dialogues    = d_use,
-                    text_data    = t_use,
-                    tags         = tags,
-                )
-                st.success(f"라이브러리에 저장했습니다 (ID #{nid})")
-                st.balloons()
+                _u   = _auth.current_user()
+                _uid = _u.id if _u else None
+                _cnt = count_my_notes(_uid) if _uid else 0
+                _ok, _used, _limit = can_create_note(_cnt)
+                if not _ok:
+                    st.error(f"무료 플랜은 노트 {_limit}개까지 만들 수 있어요 "
+                             f"(현재 {_used}개). PRO로 업그레이드하면 무제한이에요.")
+                    upgrade_banner("pro", compact=True)
+                else:
+                    nid = save_note(
+                        title        = f"{base_title} - {ct}",
+                        grade        = grade,     publisher = publisher,
+                        author       = author,    chapter   = chapter,
+                        content_type = ct,
+                        words        = w_use,
+                        dialogues    = d_use,
+                        text_data    = t_use,
+                        tags         = tags,
+                        owner_id     = _uid,
+                        visibility   = "public" if _save_public else "private",
+                    )
+                    st.success(f"라이브러리에 저장했습니다 (ID #{nid})"
+                               + (" · 공용 자료실 공개됨" if _save_public else ""))
+                    st.balloons()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -3142,9 +3202,26 @@ def page_combine():
 # 학습 시스템 헬퍼
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _visible_study_notes() -> list[dict]:
+    """학습·대시보드에서 보이는 노트 — 역할별 가시성.
+      학생  : 우리 선생님 노트 + 공용 자료실
+      선생님: 내 노트 + 공용 자료실
+      관리자/비로그인: 전체
+    """
+    role = _auth.current_role()
+    u    = _auth.current_user()
+    uid  = u.id if u else None
+    if role == "admin" or not uid:
+        return list_notes(scope="all")
+    if role == "teacher":
+        return list_notes(scope="student", owner_id=uid)        # 내것 OR 공용
+    tid = st.session_state.get("sb_teacher_id")                 # student
+    return list_notes(scope="student", owner_id=tid)            # 우리쌤 OR 공용 (tid None→공용만)
+
+
 def _get_study_note() -> dict | None:
     """현재 선택된 노트를 학습용 dict로 반환 (words_data, dialogues_data, text_data 포함)"""
-    notes = list_notes()
+    notes = _visible_study_notes()
     if not notes:
         return None
     note_id = st.session_state.get("study_note_id")
@@ -3359,8 +3436,8 @@ elif current == "__study__":
     study_page = st.session_state.get("study_page", "단어학습")
     api_cfg    = _api_config()
 
-    # 공통: 노트 선택
-    notes      = list_notes()
+    # 공통: 노트 선택 (역할별 가시성 — 학생=우리쌤+공용, 선생님=내것+공용)
+    notes      = _visible_study_notes()
 
     # 학생 ID
     student_name = st.session_state.get("study_student", "")
@@ -3487,7 +3564,7 @@ elif current == "__dashboard__":
     else:
         try:
             from study_dashboard import page_dashboard
-            page_dashboard(dash_page, student_id, student_name, api_cfg, list_notes())
+            page_dashboard(dash_page, student_id, student_name, api_cfg, _visible_study_notes())
         except ImportError:
             # 대시보드 모듈 준비 중 — 플레이스홀더
             _dash_icon = "bar-chart-line" if dash_page == "내 학습현황" else "people"

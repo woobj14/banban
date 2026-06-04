@@ -18,12 +18,13 @@ def _invalidate():
         list_notes.clear()
         get_note.clear()
         get_all_values.clear()
+        count_my_notes.clear()
     except Exception:
         pass
 
 # 목록 조회용 컬럼 (콘텐츠 JSONB 제외 — 가볍게)
 _META_COLS = ("id,title,grade,publisher,author,chapter,"
-              "content_type,item_count,tags,created_at")
+              "content_type,item_count,tags,created_at,owner_id,visibility")
 
 
 def init_db():
@@ -74,6 +75,8 @@ def save_note(
     dialogues: list | None = None,
     text_data: dict | None = None,
     tags: str = "",
+    owner_id: str | None = None,      # 제작자(선생님) auth user id
+    visibility: str = "private",      # 'private'(나+내 학생) | 'public'(공용 자료실)
 ) -> int:
     """노트를 라이브러리에 저장하고 새 id를 반환.
     words     : [(en, kr), ...]
@@ -98,6 +101,8 @@ def save_note(
         "text_data":    _listify(text_data),
         "item_count":   count,
         "tags":         tags,
+        "owner_id":     owner_id,
+        "visibility":   visibility if visibility in ("private", "public") else "private",
         "created_at":   datetime.now().strftime("%Y-%m-%d %H:%M"),
     }).execute()
     _invalidate()
@@ -110,16 +115,49 @@ def list_notes(
     publisher: str = "",
     content_type: str = "",
     search: str = "",
+    scope: str = "all",                # 'mine' | 'public' | 'student' | 'all'
+    owner_id: str | None = None,       # scope='mine' / 'student'(우리 선생님)일 때
 ) -> list[dict]:
-    """필터 조건으로 노트 목록 반환 (최신순). 콘텐츠 제외 메타데이터만."""
+    """필터 조건으로 노트 목록 반환 (최신순). 콘텐츠 제외 메타데이터만.
+
+    scope:
+      'mine'    — owner_id가 만든 내 노트만
+      'public'  — 공용 자료실(visibility='public')만
+      'student' — 우리 선생님(owner_id) 노트 + 공용 자료실
+      'all'     — 전체 (관리자/하위호환)
+    """
     sb = get_supabase()
     q  = sb.table(_TABLE).select(_META_COLS)
     if grade:        q = q.eq("grade", grade)
     if publisher:    q = q.eq("publisher", publisher)
     if content_type: q = q.eq("content_type", content_type)
     if search:       q = q.ilike("title", f"%{search}%")
+
+    # ── 가시성 범위 ──────────────────────────────────────────
+    if scope == "mine" and owner_id:
+        q = q.eq("owner_id", owner_id)
+    elif scope == "public":
+        q = q.eq("visibility", "public")
+    elif scope == "student" and owner_id:
+        # 우리 선생님 노트 + 공용 자료실
+        q = q.or_(f"owner_id.eq.{owner_id},visibility.eq.public")
+    elif scope == "student":
+        # 선생님 없는 개인 학생 → 공용 자료실만
+        q = q.eq("visibility", "public")
+    # scope == "all" → 필터 없음
+
     res = q.order("created_at", desc=True).execute()
     return res.data or []
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def count_my_notes(owner_id: str) -> int:
+    """내가 만든 노트 수 (노트 생성 한도 게이팅용)."""
+    if not owner_id:
+        return 0
+    sb  = get_supabase()
+    res = sb.table(_TABLE).select("id", count="exact").eq("owner_id", owner_id).execute()
+    return res.count or 0
 
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -147,8 +185,12 @@ def delete_note(note_id: int):
     _invalidate()
 
 
-def duplicate_note(note_id: int, new_title: str | None = None) -> int | None:
-    """기존 노트를 편집 가능한 사본으로 복제 → 새 id 반환."""
+def duplicate_note(note_id: int, new_title: str | None = None,
+                   owner_id: str | None = None) -> int | None:
+    """기존 노트를 편집 가능한 사본으로 복제 → 새 id 반환.
+    공용 자료실 노트를 '내 것으로' 가져올 때 사용 — 복제자가 새 owner, 기본 비공개.
+    owner_id 미지정 시 원본 소유자 유지(같은 선생님의 자기 노트 복제).
+    """
     src = get_note(note_id)
     if not src:
         return None
@@ -164,6 +206,8 @@ def duplicate_note(note_id: int, new_title: str | None = None) -> int | None:
         dialogues    = src.get("dialogues", []),
         text_data    = src.get("text_data", {}),
         tags         = src.get("tags", ""),
+        owner_id     = owner_id if owner_id is not None else src.get("owner_id"),
+        visibility   = "private",   # 복제본은 항상 비공개로 시작
     )
 
 
@@ -172,7 +216,8 @@ def update_note(note_id: int, **kwargs):
     payload: dict = {}
 
     # ── 메타데이터 컬럼 ─────────────────────────────────────
-    for col in ("title", "grade", "publisher", "author", "chapter", "content_type", "tags"):
+    for col in ("title", "grade", "publisher", "author", "chapter",
+                "content_type", "tags", "visibility"):
         if col in kwargs:
             payload[col] = kwargs[col]
 

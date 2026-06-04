@@ -32,16 +32,19 @@ LIMITS = {
         "ai_per_month":    10,
         "print_per_month": 3,
         "max_students":    5,
+        "max_notes":       3,    # 내가 만들 수 있는 노트 수 (공용 자료실 보기는 무제한)
     },
     "student": {
         "ai_per_month":    9999,
         "print_per_month": 10,
-        "max_students":    0,   # 학생 플랜은 관리 학생 없음
+        "max_students":    0,    # 학생 플랜은 관리 학생 없음
+        "max_notes":       3,    # 학생도 개인 노트 소량 가능
     },
     "pro": {
         "ai_per_month":    9999,
         "print_per_month": 9999,
         "max_students":    9999,
+        "max_notes":       9999,
     },
 }
 
@@ -200,6 +203,18 @@ def can_print() -> tuple[bool, int, int]:
     limit = get_limit("print_per_month")
     used  = get_print_usage()
     return used < limit, used, limit
+
+
+# ── 노트 생성 한도 (내가 만든 노트 수 기준, 공용 자료실 보기는 무제한) ──
+
+def can_create_note(current_count: int) -> tuple[bool, int, int]:
+    """내 노트를 더 만들 수 있는지. (가능여부, 현재수, 한도)
+    current_count: 호출측에서 library.count_my_notes(owner_id)로 구해 전달.
+    """
+    if has_plan("pro"):
+        return True, current_count, 9999
+    limit = get_limit("max_notes")
+    return current_count < limit, current_count, limit
 
 
 # ── UI 헬퍼 ──────────────────────────────────────────────────────

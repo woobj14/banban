@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>반반 BanBan v3 — 2,000명 시뮬레이션 냉정 리뷰</title>
+<style>
+  :root{
+    --indigo:#4338ca; --indigo2:#6366f1; --indigo-l:#eef2ff;
+    --violet:#7c3aed; --violet-l:#f5f3ff;
+    --green:#16a34a; --green-l:#f0fdf4;
+    --amber:#d97706; --amber-l:#fffbeb;
+    --red:#dc2626; --red-l:#fef2f2;
+    --sky:#0284c7; --sky-l:#f0f9ff;
+    --g900:#111827; --g700:#374151; --g500:#6b7280; --g400:#9ca3af;
+    --g300:#d1d5db; --g100:#f3f4f6; --g50:#f9fafb; --white:#fff;
+    --radius:12px; --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+    --shadow-md:0 6px 24px rgba(31,38,135,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    background:#f1f5f9;color:var(--g900);font-size:15px;line-height:1.65;padding-bottom:60px}
+  .wrap{max-width:980px;margin:0 auto;padding:0 18px}
+  /* COVER */
+  .cover{background:linear-gradient(135deg,#4338ca,#6366f1 60%,#7c3aed);
+    color:#fff;padding:54px 40px 46px;border-radius:0 0 28px 28px;box-shadow:var(--shadow-md)}
+  .cover .badge{display:inline-block;background:rgba(255,255,255,.18);
+    border:1px solid rgba(255,255,255,.3);border-radius:30px;padding:5px 16px;
+    font-size:.78rem;font-weight:700;letter-spacing:.04em;margin-bottom:18px}
+  .cover h1{font-size:2.1rem;font-weight:900;line-height:1.25;margin-bottom:12px}
+  .cover p{font-size:.96rem;color:rgba(255,255,255,.88);max-width:680px}
+  .cover .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px}
+  .cover .meta span{background:rgba(255,255,255,.14);border-radius:8px;
+    padding:6px 13px;font-size:.8rem;font-weight:600}
+  section{margin-top:34px}
+  h2{font-size:1.35rem;font-weight:850;color:var(--indigo);margin-bottom:6px;
+    display:flex;align-items:center;gap:9px}
+  h2 .n{background:var(--indigo);color:#fff;width:28px;height:28px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:.92rem}
+  .sub{color:var(--g500);font-size:.9rem;margin-bottom:16px}
+  .card{background:#fff;border:1px solid var(--g100);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:14px}
+  .note{background:var(--g50);border:1px dashed var(--g300);border-radius:10px;
+    padding:14px 18px;font-size:.86rem;color:var(--g700);line-height:1.7}
+  table{width:100%;border-collapse:collapse;font-size:.86rem;background:#fff;
+    border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  th{background:var(--indigo-l);color:var(--indigo);font-weight:800;text-align:left;
+    padding:10px 12px;font-size:.78rem;letter-spacing:.02em}
+  td{padding:10px 12px;border-top:1px solid var(--g100);vertical-align:top}
+  tr:hover td{background:var(--g50)}
+  .tag{display:inline-block;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:800}
+  /* feature score block */
+  .feat{background:#fff;border:1px solid var(--g100);border-radius:14px;
+    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px;border-left:5px solid var(--indigo2)}
+  .feat.warn{border-left-color:var(--amber)} .feat.bad{border-left-color:var(--red)}
+  .feat.good{border-left-color:var(--green)}
+  .feat h3{font-size:1.08rem;font-weight:850;margin-bottom:4px;display:flex;
+    justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .scorepill{font-size:.82rem;font-weight:900;border-radius:20px;padding:3px 12px;white-space:nowrap}
+  .bar{height:9px;background:var(--g100);border-radius:6px;margin:10px 0 14px;overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:6px}
+  .verbatim{border-left:3px solid var(--g300);padding:4px 0 4px 14px;margin:8px 0;
+    color:var(--g700);font-style:italic;font-size:.88rem}
+  .who{font-style:normal;font-weight:800;color:var(--indigo);font-size:.78rem}
+  .pro{color:var(--green);font-weight:700} .con{color:var(--red);font-weight:700}
+  ul.tight{margin:6px 0 0 2px;padding-left:18px} ul.tight li{margin:5px 0;font-size:.88rem}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.grid2{grid-template-columns:1fr}.cover h1{font-size:1.6rem}}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:8px 0 4px}
+  .kpi .k{background:#fff;border:1px solid var(--g100);border-radius:12px;
+    box-shadow:var(--shadow);padding:16px;text-align:center}
+  .kpi .k b{display:block;font-size:1.8rem;font-weight:900;line-height:1.1}
+  .kpi .k span{font-size:.74rem;color:var(--g500);font-weight:700}
+  @media(max-width:680px){.kpi{grid-template-columns:repeat(2,1fr)}}
+  .risk{background:var(--red-l);border:1px solid #fecaca;border-radius:12px;
+    padding:16px 20px;margin-bottom:12px}
+  .risk h4{color:var(--red);font-size:.98rem;font-weight:850;margin-bottom:5px;
+    display:flex;align-items:center;gap:7px}
+  .risk p{font-size:.87rem;color:var(--g700)}
+  .win{background:var(--green-l);border:1px solid #bbf7d0;border-radius:12px;padding:14px 18px;margin-bottom:10px}
+  .win h4{color:var(--green);font-size:.94rem;font-weight:850;margin-bottom:3px}
+  .win p{font-size:.86rem;color:var(--g700)}
+  .pri{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--g100);
+    border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:10px}
+  .pri .rank{flex-shrink:0;width:30px;height:30px;border-radius:8px;color:#fff;font-weight:900;
+    display:flex;align-items:center;justify-content:center;font-size:.95rem}
+  .pri h4{font-size:.95rem;font-weight:850;margin-bottom:2px}
+  .pri p{font-size:.84rem;color:var(--g600,#4b5563)}
+  .legend{font-size:.76rem;color:var(--g500);margin-top:6px}
+  footer{text-align:center;color:var(--g400);font-size:.8rem;margin-top:40px}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="wrap" style="padding:0">
+    <span class="badge">구조적 시뮬레이션 · 합성 데이터 기반</span>
+    <h1>반반 BanBan v3 릴리스<br/>2,000명 사용자 냉정 리뷰</h1>
+    <p>이번 출시분(서술형 DNA · 노트 Supabase 이전 · 로그인 첫 화면 · PRO CTA · 학생 가입 개편 ·
+       Polar 결제 자동화 · 성능)을 학생 1,000명·선생님 1,000명 페르소나로 압박 테스트했다.
+       칭찬이 아니라 <b>실제로 무엇이 깨질지</b>를 찾는 것이 목적이다.</p>
+    <div class="meta">
+      <span>👩‍🎓 학생 1,000 (5그룹)</span>
+      <span>🧑‍🏫 선생님 1,000 (5그룹)</span>
+      <span>🎯 평가 기능 7개</span>
+      <span>📅 2026-06-04</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <div class="note">
+      <b>⚠️ 문서 성격 — 합성 시뮬레이션.</b> 페르소나·점수·후기는 실제 코드베이스 동작에 근거한
+      <b>휴리스틱 추정</b>이며 실 사용자 데이터가 아니다. 의사결정의 <b>가설 자료</b>로만 사용한다.
+      점수 모델: SUS(0–100, 평균 68) · NPS(−100~+100) · 전환의향(WTP, %). 후기는 그룹 다수 의견을 응축한 합성 verbatim.
+      코드에서 <b>사실로 확인된 리스크</b>는 §5에 별도 표기했다.
+    </div>
+  </section>
+
+  <!-- ─── 종합 KPI ─── -->
+  <section>
+    <h2><span class="n">0</span> 한눈에 — 이번 릴리스 종합</h2>
+    <p class="sub">7개 기능 가중 평균. 신규 기능은 "방향은 옳으나 마감·안전장치 부족"이 공통 패턴.</p>
+    <div class="kpi">
+      <div class="k"><b style="color:var(--indigo)">72</b><span>SUS (평균 68 ↑)</span></div>
+      <div class="k"><b style="color:var(--amber)">+18</b><span>NPS (개선됨, 낮음)</span></div>
+      <div class="k"><b style="color:var(--green)">★★★★☆</b><span>방향성 평가</span></div>
+      <div class="k"><b style="color:var(--red)">3</b><span>치명 리스크 (§5)</span></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <b style="color:var(--indigo)">한 줄 요약</b> —
+      이번 릴리스는 <span class="pro">제품의 골격을 크게 끌어올렸다</span>(서술형이라는 진짜 차별점 + 데이터 영속성 확보).
+      그러나 <span class="con">서비스를 실제로 무너뜨릴 수 있는 3가지 구조적 결함</span>(노트 멀티테넌시 부재,
+      Polar 이메일 매칭 실패 가능성, 무료 플랜 콜드스타트)이 미해결로 남아 있다. <b>기능 추가보다 이 3개를 먼저 막아야 한다.</b>
+    </div>
+  </section>
+
+  <!-- ─── 페르소나 ─── -->
+  <section>
+    <h2><span class="n">1</span> 페르소나 10그룹</h2>
+    <p class="sub">v2 리뷰와 동일 그룹 — 일관 비교를 위해 유지.</p>
+    <div class="grid2">
+      <div>
+        <table>
+          <tr><th>학생 (n=1,000)</th><th>특성</th></tr>
+          <tr><td><b>S1</b> 최상위 정민 <span class="tag" style="background:var(--indigo-l);color:var(--indigo)">18%</span></td><td>완벽주의·정확성 민감</td></tr>
+          <tr><td><b>S2</b> 중위권 서연 <span class="tag" style="background:var(--violet-l);color:var(--violet)">37%</span></td><td>핵심 대중·동기 기복·폰</td></tr>
+          <tr><td><b>S3</b> 영포자 준호 <span class="tag" style="background:var(--red-l);color:var(--red)">22%</span></td><td>기초 흔들림·회피·낮은 자존감</td></tr>
+          <tr><td><b>S4</b> 학원의존 지우 <span class="tag" style="background:var(--amber-l);color:var(--amber)">15%</span></td><td>부모 결제·수동·숙제 중심</td></tr>
+          <tr><td><b>S5</b> 디지털 하린 <span class="tag" style="background:var(--sky-l);color:var(--sky)">8%</span></td><td>앱 능숙·자율·쉽게 질림</td></tr>
+        </table>
+      </div>
+      <div>
+        <table>
+          <tr><th>선생님 (n=1,000)</th><th>핵심 니즈</th></tr>
+          <tr><td><b>T1</b> 대형학원 강쌤 <span class="tag" style="background:var(--indigo-l);color:var(--indigo)">14%</span></td><td>대량 관리·자동 채점</td></tr>
+          <tr><td><b>T2</b> 1인 공부방 박쌤 <span class="tag" style="background:var(--violet-l);color:var(--violet)">41%</span></td><td>핵심 대중·교재 시간 절감</td></tr>
+          <tr><td><b>T3</b> 중학교 교사 이쌤 <span class="tag" style="background:var(--red-l);color:var(--red)">19%</span></td><td>내신 연계·공정성·보안</td></tr>
+          <tr><td><b>T4</b> 1:1 과외 최쌤 <span class="tag" style="background:var(--amber-l);color:var(--amber)">17%</span></td><td>개인 맞춤·학부모 리포트</td></tr>
+          <tr><td><b>T5</b> 온라인 윤쌤 <span class="tag" style="background:var(--sky-l);color:var(--sky)">9%</span></td><td>콘텐츠 자산화·공유</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── 기능별 평가 ─── -->
+  <section>
+    <h2><span class="n">2</span> 기능별 냉정 평가</h2>
+    <p class="sub">각 기능: 점수 · 잘된 점 · 날카로운 단점 · 그룹 합성 후기</p>
+
+    <!-- 서술형 DNA -->
+    <div class="feat good">
+      <h3>① 서술형 DNA <span class="scorepill" style="background:var(--green-l);color:var(--green)">7.8 / 10</span></h3>
+      <div class="bar"><i style="width:78%;background:var(--green)"></i></div>
+      <p><span class="pro">잘됨:</span> 내가 공부한 노트에서만 나오는 서술형 = 시중 문제집이 못 하는 진짜 차별점. 스캐폴딩 3단계로 영작 공포 완화, "이렇게 바꾸면 더 좋아요" 첨삭이 호평.</p>
+      <ul class="tight">
+        <li><span class="con">AI 채점 신뢰도:</span> 중학생 영작은 철자·관사·시제 변형이 무한 → LLM이 정답을 오답 처리(거짓 음성)하면 <b>학생 신뢰가 즉시 붕괴</b>. S1·S3에서 가장 치명적.</li>
+        <li><span class="con">비용:</span> 채점 1건 = LLM 1콜. 1,000명이 하루 5문제면 일 5,000콜. 단일 키 공유 시 레이트리밋·비용 폭증.</li>
+        <li><span class="con">지연:</span> Streamlit rerun + LLM 왕복으로 채점 버튼 후 3~6초 정적. S5는 "왜 멈춰요?"로 이탈.</li>
+      </ul>
+      <p class="verbatim"><span class="who">S3 준호</span> "맞게 썼는데 틀렸대요. 모범답안이랑 뜻 똑같은데… 이럴 거면 안 해요."</p>
+      <p class="verbatim"><span class="who">T3 이쌤</span> "방향은 최고예요. 근데 채점이 한 번이라도 틀리면 학부모 민원 들어와요. 부분점수 근거를 보여줘야 신뢰합니다."</p>
+    </div>
+
+    <!-- 노트 Supabase 이전 -->
+    <div class="feat bad">
+      <h3>② 노트 라이브러리 Supabase 이전 <span class="scorepill" style="background:var(--red-l);color:var(--red)">5.5 / 10</span></h3>
+      <div class="bar"><i style="width:55%;background:var(--red)"></i></div>
+      <p><span class="pro">잘됨:</span> 로컬↔배포 동기화 + 재배포에도 노트 영속 = 운영의 기본기를 드디어 갖춤. 캐싱으로 클릭 반응도 개선.</p>
+      <ul class="tight">
+        <li><span class="con" style="font-size:.95em">🚨 멀티테넌시 부재 (구조적 결함):</span> 현재 <code>notes</code>는 <b>owner 필터가 없어 전체 공유</b>. 즉 <b>박쌤이 만든 노트를 강쌤·이쌤이 그대로 봄</b>. 1인 공부방 교사의 핵심 자산(직접 만든 교재)이 경쟁 교사에게 노출 → <b>유료 전환의 근간을 파괴.</b></li>
+        <li><span class="con">전체 공유의 2차 문제:</span> 노트 수천 개가 한 목록에 → 학생이 남의 반 노트를 봄, 필터 지옥.</li>
+      </ul>
+      <p class="verbatim"><span class="who">T2 박쌤</span> "제가 밤새 만든 3과 교재가 왜 옆 학원 목록에 떠요? 이러면 절대 결제 안 하죠. 당장 내 노트만 보이게 해주세요."</p>
+      <p class="verbatim"><span class="who">T5 윤쌤</span> "콘텐츠 자산화가 셀링포인트인데 자산이 공유라니… 신뢰가 안 가요."</p>
+    </div>
+
+    <!-- 로그인 첫 화면 -->
+    <div class="feat warn">
+      <h3>③ 로그인 첫 화면 → 내 학습현황 <span class="scorepill" style="background:var(--amber-l);color:var(--amber)">6.8 / 10</span></h3>
+      <div class="bar"><i style="width:68%;background:var(--amber)"></i></div>
+      <p><span class="pro">잘됨:</span> 학생은 들어오자마자 내 진도·복습이 보여 학습 동기 ↑. 결제 배너부터 보던 첫인상 문제 해소.</p>
+      <ul class="tight">
+        <li><span class="con">신규 선생님 빈 화면:</span> 학생 0명·노트 0개인 가입 직후 선생님은 <b>텅 빈 대시보드</b>를 첫 화면으로 봄 → "뭘 해야 하지?" 막막함. 선생님은 첫 할 일이 <b>노트 만들기</b>인데 그게 안 보임.</li>
+        <li><span class="con">역할 무분별:</span> 학생·선생님 모두 같은 첫 화면 → 선생님에겐 "노트 만들기" 온보딩이 더 적합.</li>
+      </ul>
+      <p class="verbatim"><span class="who">T2 박쌤(신규)</span> "로그인했더니 빈 표만 있어요. 첫날엔 '노트부터 만드세요' 같은 안내가 낫겠는데요."</p>
+    </div>
+
+    <!-- PRO CTA -->
+    <div class="feat warn">
+      <h3>④ PRO 업그레이드 CTA 미니멀화 <span class="scorepill" style="background:var(--amber-l);color:var(--amber)">6.5 / 10</span></h3>
+      <div class="bar"><i style="width:65%;background:var(--amber)"></i></div>
+      <p><span class="pro">잘됨:</span> 깨진 배너 제거로 사이드바가 단정해짐. 첫인상 퀄리티 회복.</p>
+      <ul class="tight">
+        <li><span class="con">전환 약화 위험:</span> 너무 약해진 한 줄 링크는 <b>배너 블라인드니스</b>로 무시됨. 기능 잠금 지점의 <code>upgrade_banner()</code>가 실제로 잘 노출되는지 검증 안 되면 <b>매출 동선이 통째로 사라질</b> 수 있음.</li>
+        <li><span class="con">가치 제안 부재:</span> "PRO로 업그레이드"만으론 <b>왜</b> 사야 하는지 모름. "서술형 무제한" 같은 핵심 후킹 1개는 남겨야.</li>
+      </ul>
+      <p class="verbatim"><span class="who">T4 최쌤</span> "깔끔해서 좋은데… 솔직히 PRO가 뭘 더 주는지 한눈에 안 와요."</p>
+    </div>
+
+    <!-- 학생 가입 개편 -->
+    <div class="feat">
+      <h3>⑤ 학생 가입 개편 (이메일·연락처 선택 + 코드 선택) <span class="scorepill" style="background:var(--indigo-l);color:var(--indigo)">7.0 / 10</span></h3>
+      <div class="bar"><i style="width:70%;background:var(--indigo2)"></i></div>
+      <p><span class="pro">잘됨:</span> 선생님 코드 없이도 개인 가입 가능 → 무료 유입 확대. 선생님 코드 시 plan 상속 = 반 전체 커버.</p>
+      <ul class="tight">
+        <li><span class="con">계정 복구 사각:</span> 이메일이 선택이라 <b>비번 분실 시 복구 불가</b>한 학생 대량 발생 가능(S3·S4). CS 부담 ↑.</li>
+        <li><span class="con">수익 모델 모호:</span> 무료 개인 학생이 늘면 AI 비용만 증가하고 STUDENT 전환은 미지수. 무료↔유료 경계 가치가 약함.</li>
+      </ul>
+      <p class="verbatim"><span class="who">S4 지우 학부모</span> "아이가 비번을 까먹었는데 이메일을 안 넣어서 못 찾는대요."</p>
+    </div>
+
+    <!-- Polar webhook -->
+    <div class="feat bad">
+      <h3>⑥ Polar 결제 자동화 (Webhook) <span class="scorepill" style="background:var(--red-l);color:var(--red)">5.8 / 10</span></h3>
+      <div class="bar"><i style="width:58%;background:var(--red)"></i></div>
+      <p><span class="pro">잘됨:</span> 결제 완료 → plan 자동 반영 파이프라인 구축. 수동 변경 탈피.</p>
+      <ul class="tight">
+        <li><span class="con" style="font-size:.95em">🚨 이메일 매칭 실패 (구조적 결함):</span> 학생 로그인은 <b>가상 이메일(username 기반)</b>인데, webhook은 결제자 이메일로 <code>profiles.email</code>/<code>contact_email</code>을 매칭. <b>둘이 다르면 결제해도 plan이 안 올라감</b> → "돈 냈는데 PRO 안 됨" 최악의 경험.</li>
+        <li><span class="con">서명 검증 미완:</span> HMAC 검증이 헤더 존재 확인 수준 → 위조 webhook으로 무단 plan 승격 가능.</li>
+      </ul>
+      <p class="verbatim"><span class="who">S2 서연</span> "STUDENT 결제했는데 아직도 잠겨 있어요. 환불해주세요." <span style="color:var(--g500)">— 가장 위험한 문장</span></p>
+    </div>
+
+    <!-- 성능 -->
+    <div class="feat bad">
+      <h3>⑦ 성능 — 캐싱 + Render 무료 콜드스타트 <span class="scorepill" style="background:var(--red-l);color:var(--red)">4.9 / 10</span></h3>
+      <div class="bar"><i style="width:49%;background:var(--red)"></i></div>
+      <p><span class="pro">잘됨:</span> 노트 조회 캐싱(120s)으로 클릭 단위 지연은 개선됨.</p>
+      <ul class="tight">
+        <li><span class="con" style="font-size:.95em">🚨 콜드스타트:</span> 무료 플랜은 15분 유휴 후 sleep → <b>첫 접속 30초~1분 백지</b>. 학원 수업 시작 시 30명이 동시에 1분을 기다림 → 수업 흐름 파탄.</li>
+        <li><span class="con">Streamlit rerun:</span> 매 상호작용 전체 재실행. 저사양 폰(S3 다수)에서 체감 지연 상존.</li>
+      </ul>
+      <p class="verbatim"><span class="who">T1 강쌤</span> "수업 종 치고 앱 켰는데 1분을 멍하니 기다려요. 이건 현장에서 못 씁니다."</p>
+    </div>
+  </section>
+
+  <!-- ─── 세그먼트 점수 ─── -->
+  <section>
+    <h2><span class="n">3</span> 그룹별 종합 만족도</h2>
+    <p class="sub">이번 릴리스 체감 점수(10점). 핵심 대중 S2·T2가 중간에 갇혀 있음 = 전환 정체 신호.</p>
+    <div class="card">
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div><b style="font-size:.84rem">S1 최상위</b><div class="bar" style="margin:4px 0"><i style="width:74%;background:var(--indigo2)"></i></div></div>
+        <div><b style="font-size:.84rem">S2 중위권(핵심)</b><div class="bar" style="margin:4px 0"><i style="width:66%;background:var(--violet)"></i></div></div>
+        <div><b style="font-size:.84rem">S3 영포자</b><div class="bar" style="margin:4px 0"><i style="width:58%;background:var(--amber)"></i></div></div>
+        <div><b style="font-size:.84rem">T2 공부방(핵심)</b><div class="bar" style="margin:4px 0"><i style="width:60%;background:var(--red)"></i></div> <span class="legend">↓ 노트 공유 문제로 핵심 대중 신뢰 하락</span></div>
+        <div><b style="font-size:.84rem">T3 중학교 교사</b><div class="bar" style="margin:4px 0"><i style="width:69%;background:var(--indigo2)"></i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── 치명 리스크 ─── -->
+  <section>
+    <h2><span class="n">4</span> 🚨 지금 막아야 할 치명 리스크 3</h2>
+    <p class="sub">아래는 추정이 아니라 <b>코드에서 확인된 구조적 사실</b>. 기능 추가보다 우선.</p>
+    <div class="risk">
+      <h4>① 노트 멀티테넌시 부재 — 교사 자산 전체 공유</h4>
+      <p><code>library.py</code>가 owner 필터 없이 전체 <code>notes</code>를 반환. 선생님이 만든 교재가 다른 모든 선생님·학생에게 노출됨.
+      <b>유료 전환의 핵심 동기(내 콘텐츠 자산화)를 정면으로 무너뜨림.</b> → <code>owner_id</code>(이미 컬럼 존재) 기준 필터 + RLS 재설계 필요.</p>
+    </div>
+    <div class="risk">
+      <h4>② Polar webhook 이메일 매칭 실패 — "결제했는데 PRO 안 됨"</h4>
+      <p>학생은 가상 이메일로 로그인하는데 webhook은 결제 이메일로 매칭 → 불일치 시 plan 미반영.
+      결제는 됐는데 혜택이 안 열리는 <b>환불·신뢰 붕괴 시나리오.</b> → 결제 시 <code>checkout</code>에 user_id를 메타데이터로 실어 보내 ID 기준 매칭으로 전환 + HMAC 서명 검증 완성.</p>
+    </div>
+    <div class="risk">
+      <h4>③ 무료 플랜 콜드스타트 — 수업 현장 1분 백지</h4>
+      <p>Render 무료는 유휴 후 sleep. 학원 단체 접속 시 동시 대기. <b>B2B(학원) 채택의 결정적 장벽.</b>
+      → Starter 유료 전환(근본) 또는 uptime 핑(임시). 운영 비용으로 처리할 1순위.</p>
+    </div>
+  </section>
+
+  <!-- ─── 잘된 점 ─── -->
+  <section>
+    <h2><span class="n">5</span> ✅ 분명히 잘한 것</h2>
+    <div class="win"><h4>서술형 DNA — 진짜 해자(moat)</h4><p>"내 노트에서 나오는 서술형 + 첨삭"은 경쟁사가 콘텐츠 자산 없이는 못 따라옴. 제품의 정체성을 만든 결정.</p></div>
+    <div class="win"><h4>데이터 영속성 확보</h4><p>노트를 Supabase로 옮겨 "재배포하면 사라지는" 치명적 운영 결함을 제거. 늦었지만 반드시 필요한 기반.</p></div>
+    <div class="win"><h4>첫인상 정리</h4><p>로그인 첫 화면 + PRO 배너 정돈으로 "들어오자마자 결제 압박" 인상을 학습 중심으로 전환.</p></div>
+  </section>
+
+  <!-- ─── 우선순위 ─── -->
+  <section>
+    <h2><span class="n">6</span> 다음 2주 우선순위</h2>
+    <p class="sub">냉정한 결론: <b>새 기능 금지. 위 3개 리스크부터 닫는다.</b></p>
+    <div class="pri"><div class="rank" style="background:var(--red)">1</div><div><h4>노트 owner_id 필터 + RLS — 교사별 노트 격리</h4><p>전체 공유 → 내 노트만. 유료 전환 동기 복구. 가장 시급.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--red)">2</div><div><h4>Polar 결제 user_id 매칭 + 서명 검증</h4><p>"결제했는데 잠김" 제거. 환불·신뢰 리스크 차단.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--amber)">3</div><div><h4>Render Starter 전환 (콜드스타트 제거)</h4><p>B2B 채택 장벽 제거. 운영비로 즉시 해결 가능.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--amber)">4</div><div><h4>서술형 AI 채점 안전장치</h4><p>부분점수 근거 노출 + "이의 제기/재채점" 버튼. 거짓 오답으로 인한 신뢰 붕괴 방지.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--indigo2)">5</div><div><h4>신규 선생님 온보딩 + PRO 가치 1줄</h4><p>빈 대시보드 대신 "첫 노트 만들기" 유도. CTA에 "서술형 무제한" 후킹 1개 복원.</p></div></div>
+  </section>
+
+  <footer>
+    반반 BanBan v3 시뮬레이션 리뷰 · 합성 데이터 기반 가설 자료 · 2026-06-04<br/>
+    작성: M.J.(PM) · S.Y.(백엔드) · D.Y.(프론트) · A.R.(QA)
+  </footer>
+
+</div>
+</body>
+</html>
