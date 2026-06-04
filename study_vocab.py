@@ -560,11 +560,55 @@ def _finish_quiz_ui(api_config: dict | None):
                     st.success(f"'{en}' 오답노트에 추가됨!")
                     st.rerun()
 
+    # ── 성취 후 업그레이드 넛지 (Peak-End Rule) ───────────────────
+    try:
+        from plans import can_use_ai, checkout_url, has_plan
+        if not has_plan("student"):
+            _ok, _used, _limit = can_use_ai()
+            _remain = max(0, _limit - _used)
+            if _remain <= 3:
+                _nudge_color = "#DC2626" if _remain == 0 else "#D97706"
+                _nudge_msg   = ("이번 달 AI 사용 한도를 모두 썼어요."
+                                if _remain == 0
+                                else f"이번 달 AI 사용이 {_remain}회 남았어요.")
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#EEF2FF,#F5F3FF);'
+                    f'border:1px solid #C7D2FE;border-radius:14px;'
+                    f'padding:14px 16px;margin:12px 0;">'
+                    f'<div style="font-size:0.85rem;color:#4338CA;font-weight:700;margin-bottom:6px;">'
+                    f'{icon("zap",14,"#4338CA")} {_nudge_msg}</div>'
+                    f'<div style="font-size:0.8rem;color:#374151;margin-bottom:10px;">'
+                    f'STUDENT 플랜으로 AI 문제 생성·약점 분석을 무제한으로 쓸 수 있어요.</div>'
+                    f'<a href="{checkout_url("student")}" target="_blank" '
+                    f'style="display:block;background:#4F46E5;color:white;border-radius:8px;'
+                    f'padding:9px;text-align:center;font-weight:800;font-size:0.88rem;'
+                    f'text-decoration:none;">첫 달 무료로 시작하기 →</a>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            elif pct >= 80:
+                # 고득점 달성 → PRO 유도
+                st.markdown(
+                    f'<div style="background:#F0FDF4;border:1px solid #BBF7D0;'
+                    f'border-radius:12px;padding:12px 16px;margin:12px 0;">'
+                    f'<div style="font-size:0.85rem;color:#166534;font-weight:700;margin-bottom:4px;">'
+                    f'{icon("trending-up",14,"#16A34A")} {pct}점 달성! 실력이 빠르게 늘고 있어요.</div>'
+                    f'<div style="font-size:0.78rem;color:#374151;margin-bottom:8px;">'
+                    f'약점 처방전·AI 심화 문제로 더 빠르게 성장할 수 있어요.</div>'
+                    f'<a href="{checkout_url("student")}" target="_blank" '
+                    f'style="font-size:0.8rem;color:#4F46E5;font-weight:700;text-decoration:none;">'
+                    f'STUDENT 플랜 보기 →</a>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+    except Exception:
+        pass
+
     col1, col2 = st.columns(2)
-    if col1.button("🔄 다시 풀기", use_container_width=True):
+    if col1.button("다시 풀기", use_container_width=True):
         del st.session_state["quiz"]
         st.rerun()
-    if col2.button("🏠 단어학습 홈", use_container_width=True):
+    if col2.button("단어학습 홈", use_container_width=True):
         del st.session_state["quiz"]
         st.session_state["study_sub"] = "단어학습"
         st.rerun()

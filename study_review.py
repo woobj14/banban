@@ -913,12 +913,48 @@ def _render_done():
                 unsafe_allow_html=True,
             )
 
+    # ── 복습 완료 후 업그레이드 넛지 ─────────────────────────────
+    try:
+        from plans import has_plan, checkout_url
+        if not has_plan("student"):
+            sc   = rv.get("score", 0)
+            tot  = rv.get("total", 1)
+            pct  = int(sc / tot * 100) if tot else 0
+            if pct >= 80:
+                st.markdown(
+                    f'<div style="background:#F0FDF4;border:1px solid #BBF7D0;'
+                    f'border-radius:12px;padding:12px 16px;margin:10px 0;">'
+                    f'<div style="font-size:0.85rem;color:#166534;font-weight:700;margin-bottom:4px;">'
+                    f'{icon("trending-up",14,"#16A34A")} 복습 {pct}% 달성! 기억이 단단해지고 있어요.</div>'
+                    f'<div style="font-size:0.78rem;color:#374151;margin-bottom:8px;">'
+                    f'약점 처방전 AI로 취약 포인트를 정밀하게 잡아보세요.</div>'
+                    f'<a href="{checkout_url("student")}" target="_blank" '
+                    f'style="font-size:0.8rem;color:#4F46E5;font-weight:700;text-decoration:none;">'
+                    f'STUDENT 플랜 첫 달 무료 →</a></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<div style="background:#EEF2FF;border:1px solid #C7D2FE;'
+                    f'border-radius:12px;padding:12px 16px;margin:10px 0;">'
+                    f'<div style="font-size:0.85rem;color:#4338CA;font-weight:700;margin-bottom:4px;">'
+                    f'{icon("zap",14,"#4338CA")} AI 문제로 더 효과적으로 복습할 수 있어요.</div>'
+                    f'<div style="font-size:0.78rem;color:#374151;margin-bottom:8px;">'
+                    f'STUDENT 플랜에서 AI 내신문제·오답 분석을 무제한으로 사용하세요.</div>'
+                    f'<a href="{checkout_url("student")}" target="_blank" '
+                    f'style="font-size:0.8rem;color:#4F46E5;font-weight:700;text-decoration:none;">'
+                    f'첫 달 무료로 시작하기 →</a></div>',
+                    unsafe_allow_html=True,
+                )
+    except Exception:
+        pass
+
     col1, col2 = st.columns(2)
-    if col1.button("🔄 다시 풀기", use_container_width=True):
+    if col1.button("다시 풀기", use_container_width=True):
         original = rv.get("items", [])
         _init_session(original)
         st.rerun()
-    if col2.button("✅ 완료", type="primary", use_container_width=True):
+    if col2.button("완료", type="primary", use_container_width=True):
         del st.session_state["_rv"]
         st.rerun()
 

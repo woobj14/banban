@@ -163,25 +163,31 @@ def _render_auth_page():
      border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#3730A3;
      margin:10px 0 14px;line-height:1.9;">
   {icon("info", 13, "#4F46E5")} <b>학생 가입 방법</b><br>
-  {icon("check-circle", 11, "#4F46E5")} 선생님에게 초대 코드를 받으세요<br>
-  {icon("check-circle", 11, "#4F46E5")} 학생 아이디는 영문+숫자, 3~20자 (예: kimj2025)<br>
-  {icon("check-circle", 11, "#4F46E5")} 비밀번호: 8자 이상, 대소문자+숫자+특수문자 포함
+  {icon("check-circle", 11, "#4F46E5")} 선생님 코드가 <b>없어도</b> 가입할 수 있어요 (개인 회원)<br>
+  {icon("check-circle", 11, "#4F46E5")} 선생님 코드를 넣으면 우리 반에 자동 연결돼요<br>
+  {icon("check-circle", 11, "#4F46E5")} 학생 아이디는 영문+숫자, 3~20자 (예: kimj2025)
 </div>
 """, unsafe_allow_html=True)
                 with st.form("student_signup_form"):
                     s_username = st.text_input(
-                        "학생 아이디",
+                        "학생 아이디 *",
                         placeholder="영문+숫자 (예: kimj2025)",
                         help="로그인 시 사용할 나만의 아이디 — 영문/숫자/밑줄, 3~20자"
                     )
-                    s_name = st.text_input("이름 (표시 이름)", placeholder="홍길동")
-                    s_code = st.text_input(
-                        "초대 코드",
-                        placeholder="선생님이 알려준 코드 (예: BB-ABCD12)",
-                        help="선생님이 생성한 초대 코드를 입력하세요"
-                    )
-                    s_pw = st.text_input("비밀번호", type="password",
+                    s_name = st.text_input("이름 (표시 이름) *", placeholder="홍길동")
+                    s_pw = st.text_input("비밀번호 *", type="password",
                                          placeholder="8자 이상, 대소문자+숫자+특수문자")
+                    s_code = st.text_input(
+                        "선생님 초대 코드 (선택)",
+                        placeholder="있으면 입력 (예: BB-ABCD12) · 없으면 비워두세요",
+                        help="선생님께 받은 코드가 있으면 입력하세요. 없으면 개인 회원으로 가입돼요."
+                    )
+                    sc1, sc2 = st.columns(2)
+                    s_email = sc1.text_input(
+                        "이메일 (선택)", placeholder="가입·복구·리포트용",
+                        help="비워둬도 가입 가능. 학부모 리포트·계정 복구에 사용돼요.")
+                    s_phone = sc2.text_input(
+                        "연락처 (선택)", placeholder="010-0000-0000")
                     s_submitted = st.form_submit_button(
                         "학생 계정 만들기", use_container_width=True, type="primary"
                     )
@@ -191,8 +197,6 @@ def _render_auth_page():
                         st.error("학생 아이디를 입력해주세요.")
                     elif not s_name.strip():
                         st.error("이름을 입력해주세요.")
-                    elif not s_code.strip():
-                        st.error("초대 코드를 입력해주세요.")
                     elif not s_pw:
                         st.error("비밀번호를 입력해주세요.")
                     else:
@@ -201,7 +205,9 @@ def _render_auth_page():
                                 s_username.strip(),
                                 s_name.strip(),
                                 s_pw,
-                                s_code.strip(),
+                                invite_code=s_code.strip(),
+                                contact_email=s_email.strip(),
+                                phone=s_phone.strip(),
                             )
                         if ok:
                             st.success(msg)
@@ -504,17 +510,132 @@ if is_supabase_configured():
 # 사이드바 계정 관리 위젯
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_account_sidebar():
-    """로그인된 사용자 정보 + 계정 관리 메뉴 (사이드바) — Dark Edition"""
+_PLAN_BADGE = {
+    "free":    ("#F1F5F9", "#64748B", "FREE"),
+    "student": ("#E0F2FE", "#0369A1", "STUDENT"),
+    "pro":     ("#FEF3C7", "#92400E", "PRO"),
+}
+
+
+@st.dialog("계정 관리", width="small")
+def _account_dialog():
+    """계정 관리 팝업 — 프로필·비밀번호·로그아웃·탈퇴 (프리미엄 디자인)."""
     name  = _auth.current_student_name()
     role  = _auth.current_role()
     user  = _auth.current_user()
     email = user.email if user else ""
+    plan  = current_plan()
     role_label = {"student": "학생", "teacher": "선생님", "admin": "관리자"}.get(role, role)
-    # 관리자면 amber 뱃지
+    _pbg, _pfc, _plabel = _PLAN_BADGE.get(plan, _PLAN_BADGE["free"])
+
+    # ── 프로필 헤더 (그라디언트 카드) ─────────────────────────────
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#4F46E5,#7C3AED);'
+        f'border-radius:16px;padding:18px 20px;margin-bottom:16px;'
+        f'box-shadow:0 8px 24px rgba(79,70,229,0.28);">'
+        f'<div style="display:flex;align-items:center;gap:13px;">'
+        f'<div style="background:rgba(255,255,255,0.2);border-radius:50%;'
+        f'width:46px;height:46px;display:flex;align-items:center;justify-content:center;'
+        f'flex-shrink:0;backdrop-filter:blur(8px);">{icon("user",22,"white")}</div>'
+        f'<div style="min-width:0;flex:1;">'
+        f'<div style="font-weight:800;color:white;font-size:1.05rem;'
+        f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{name or "사용자"}</div>'
+        f'<div style="font-size:0.74rem;color:rgba(255,255,255,0.85);'
+        f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{email}</div>'
+        f'</div></div>'
+        f'<div style="display:flex;gap:6px;margin-top:12px;">'
+        f'<span style="background:rgba(255,255,255,0.22);color:white;border-radius:6px;'
+        f'padding:2px 10px;font-size:0.7rem;font-weight:700;">{role_label}</span>'
+        f'<span style="background:{_pbg};color:{_pfc};border-radius:6px;'
+        f'padding:2px 10px;font-size:0.7rem;font-weight:800;">{_plabel} 플랜</span>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── 플랜 업그레이드 (FREE/STUDENT) ────────────────────────────
+    if plan != "pro":
+        target = "pro" if role in ("teacher", "admin") else "student"
+        label  = "PRO 19,900원/월" if target == "pro" else "STUDENT 4,900원/월"
+        st.markdown(
+            f'<a href="{checkout_url(target)}" target="_blank" style="display:flex;'
+            f'align-items:center;justify-content:space-between;'
+            f'background:#F5F3FF;border:1px solid #DDD6FE;border-radius:12px;'
+            f'padding:11px 15px;margin-bottom:14px;text-decoration:none;">'
+            f'<span style="font-size:0.84rem;color:#4338CA;font-weight:700;">'
+            f'{icon("zap",14,"#4338CA")} {label}로 업그레이드</span>'
+            f'<span style="color:#4F46E5;font-weight:800;">→</span></a>',
+            unsafe_allow_html=True,
+        )
+
+    tab_profile, tab_pw, tab_danger = st.tabs(["프로필", "비밀번호", "계정"])
+
+    with tab_profile:
+        new_name  = st.text_input("표시 이름", value=name, key="acct_name")
+        new_grade = st.selectbox("학년", ["", "중1", "중2", "중3", "고1", "고2", "고3", "기타"],
+                                 key="acct_grade")
+        if st.button("프로필 저장", key="acct_save", use_container_width=True, type="primary"):
+            ok, msg = _auth.update_profile(new_name, new_grade)
+            if ok:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
+
+    with tab_pw:
+        st.caption("대문자+소문자+숫자+특수문자, 8자 이상")
+        new_pw  = st.text_input("새 비밀번호", type="password", key="acct_pw")
+        new_pw2 = st.text_input("새 비밀번호 확인", type="password", key="acct_pw2")
+        if new_pw:
+            label, color = _auth.password_strength_label(new_pw)
+            st.markdown(
+                f'<div style="font-size:0.78rem;color:{color};font-weight:700;">'
+                f'강도: {label}</div>',
+                unsafe_allow_html=True,
+            )
+        if st.button("비밀번호 변경", key="acct_pw_save", use_container_width=True, type="primary"):
+            if new_pw != new_pw2:
+                st.error("비밀번호가 일치하지 않습니다.")
+            else:
+                ok, msg = _auth.update_password(new_pw)
+                if ok:  st.success(msg)
+                else:   st.error(msg)
+
+    with tab_danger:
+        if st.button("로그아웃", use_container_width=True, key="acct_logout"):
+            _auth.sign_out()
+            st.rerun()
+        st.markdown(
+            '<div style="font-size:0.74rem;color:#94A3B8;margin:10px 0 6px;">위험 구역</div>',
+            unsafe_allow_html=True,
+        )
+        confirm = st.text_input("탈퇴하려면 '탈퇴합니다' 입력",
+                                key="acct_delete_confirm",
+                                placeholder="탈퇴합니다")
+        if st.button("계정 영구 삭제", use_container_width=True, key="acct_delete"):
+            if confirm == "탈퇴합니다":
+                ok, msg = _auth.delete_account()
+                if ok:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+            else:
+                st.error("'탈퇴합니다'를 정확히 입력해주세요.")
+
+
+def _render_account_sidebar():
+    """로그인 사용자 카드 — 이름·역할·플랜 뱃지 + 계정 관리 버튼."""
+    name  = _auth.current_student_name()
+    role  = _auth.current_role()
+    user  = _auth.current_user()
+    email = user.email if user else ""
+    plan  = current_plan()
+    role_label = {"student": "학생", "teacher": "선생님", "admin": "관리자"}.get(role, role)
     role_color = "#F59E0B" if role == "admin" else "#6366F1"
     role_bg    = "rgba(245,158,11,0.15)" if role == "admin" else "rgba(99,102,241,0.15)"
+    _pbg, _pfc, _plabel = _PLAN_BADGE.get(plan, _PLAN_BADGE["free"])
 
+    # 이름 오른쪽에 역할 + 플랜 뱃지 함께 표시
     st.markdown(f"""
 <div style="background:#F7F8FB;border:1px solid #ECEEF3;
      border-radius:12px;padding:10px 12px;margin:4px 0 6px;">
@@ -526,88 +647,31 @@ def _render_account_sidebar():
       {icon("user", 17, "white")}
     </div>
     <div style="min-width:0;flex:1;">
-      <div style="font-weight:700;color:#1E293B;font-size:0.86rem;
-           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        {name or "사용자"}
-      </div>
-      <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+      <div style="display:flex;align-items:center;gap:5px;">
+        <span style="font-weight:700;color:#1E293B;font-size:0.86rem;
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          {name or "사용자"}
+        </span>
         <span style="background:{role_bg};color:{role_color};
-               border-radius:4px;padding:1px 7px;font-size:0.68rem;font-weight:700;">
+               border-radius:4px;padding:1px 6px;font-size:0.62rem;font-weight:700;flex-shrink:0;">
           {role_label}
         </span>
-        <span style="font-size:0.7rem;color:#94A3B8;
-               overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {email}
+        <span style="background:{_pbg};color:{_pfc};
+               border-radius:4px;padding:1px 6px;font-size:0.62rem;font-weight:800;flex-shrink:0;">
+          {_plabel}
         </span>
+      </div>
+      <div style="font-size:0.68rem;color:#94A3B8;margin-top:2px;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        {email}
       </div>
     </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-    with st.expander("계정 관리", expanded=False):
-        st.markdown(f"""
-<div style="font-size:0.8rem;font-weight:700;color:#818CF8;
-     display:flex;align-items:center;gap:5px;margin-bottom:8px;">
-  {icon("user", 13, "#818CF8")} 프로필 수정
-</div>""", unsafe_allow_html=True)
-        new_name  = st.text_input("표시 이름", value=name, key="acct_name")
-        new_grade = st.selectbox("학년", ["", "중1", "중2", "중3", "고1", "고2", "고3", "기타"],
-                                 key="acct_grade")
-        if st.button("저장", key="acct_save", use_container_width=True):
-            ok, msg = _auth.update_profile(new_name, new_grade)
-            if ok:
-                st.success(msg)
-                st.rerun()
-            else:
-                st.error(msg)
-
-        st.divider()
-
-        st.markdown(f"""
-<div style="font-size:0.8rem;font-weight:700;color:#818CF8;
-     display:flex;align-items:center;gap:5px;margin-bottom:8px;">
-  {icon("lock", 13, "#818CF8")} 비밀번호 변경
-</div>""", unsafe_allow_html=True)
-        st.caption("대문자+소문자+숫자+특수문자, 8자 이상")
-        new_pw  = st.text_input("새 비밀번호", type="password", key="acct_pw")
-        new_pw2 = st.text_input("새 비밀번호 확인", type="password", key="acct_pw2")
-        if new_pw:
-            label, color = _auth.password_strength_label(new_pw)
-            st.markdown(
-                f'<div style="font-size:0.78rem;color:{color};font-weight:700;">'
-                f'강도: {label}</div>',
-                unsafe_allow_html=True,
-            )
-        if st.button("변경", key="acct_pw_save", use_container_width=True):
-            if new_pw != new_pw2:
-                st.error("비밀번호가 일치하지 않습니다.")
-            else:
-                ok, msg = _auth.update_password(new_pw)
-                if ok:  st.success(msg)
-                else:   st.error(msg)
-
-        st.divider()
-
-        if st.button("로그아웃", use_container_width=True, key="acct_logout"):
-            _auth.sign_out()
-            st.rerun()
-
-        with st.expander("회원 탈퇴", expanded=False):
-            st.warning("탈퇴하면 모든 학습 데이터가 영구 삭제됩니다.")
-            confirm = st.text_input("'탈퇴합니다' 입력 후 버튼 클릭",
-                                    key="acct_delete_confirm")
-            if st.button("계정 영구 삭제", type="primary",
-                         use_container_width=True, key="acct_delete"):
-                if confirm == "탈퇴합니다":
-                    ok, msg = _auth.delete_account()
-                    if ok:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                else:
-                    st.error("'탈퇴합니다'를 정확히 입력해주세요.")
+    if st.button("계정 관리", key="open_acct_dialog", use_container_width=True):
+        _account_dialog()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1108,6 +1172,123 @@ if st.query_params.get("chat") == "open":
     st.query_params.clear()
     st.rerun()
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 진입 세그먼트 팝업 — 랜딩 "지금 무료로 시작하기" → 학생/선생님 + 학년 선택
+# 2탭 카드 + 건너뛰기 + 즉시 맞춤 웰컴 (회의 결론 반영)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_WELCOME_MSG = {
+    ("student", "중1"): "중학교 영어, 지금 습관 들이면 3년이 편해져요. 첫 단어부터 같이 시작해요!",
+    ("student", "중2"): "딱 지금이 영어 실력 가르는 시기예요. 틀린 것만 골라 복습하며 앞서가요!",
+    ("student", "중3"): "내신·고입까지 시간이 많지 않아요. 가장 빠른 복습 루트, 지금 시작합니다.",
+    ("student", "고1"): "고등 영어의 시작. 탄탄한 기초로 1등급의 발판을 만들어요!",
+    ("student", "고2"): "수능형 사고력까지. 약점만 정밀하게 잡아 효율적으로 올라가요!",
+    ("student", "고3"): "수능까지 D-day. 약점만 정밀 타격하는 맞춤 학습으로 마지막 스퍼트!",
+    ("teacher", "*"):   "교재 만드는 시간, 이제 5분이면 충분해요. 첫 반반노트를 만들어볼까요?",
+}
+
+def _welcome_for(role: str, level: str) -> str:
+    if role == "teacher":
+        return _WELCOME_MSG[("teacher", "*")]
+    return _WELCOME_MSG.get((role, level),
+                            "환영합니다! 당신만의 맞춤 학습을 설계해드릴게요.")
+
+
+def _log_visitor_segment(role: str, level: str):
+    """방문자 세그먼트 익명 집계 (best-effort)."""
+    try:
+        from supabase_client import get_supabase, is_supabase_configured
+        if not is_supabase_configured():
+            return
+        uid = None
+        u = _auth.current_user()
+        if u:
+            uid = u.id
+        get_supabase().table("visitor_segments").insert(
+            {"role": role, "level": level, "user_id": uid}
+        ).execute()
+    except Exception:
+        pass
+
+
+@st.dialog("반반 BanBan에 오신 걸 환영해요", width="small")
+def _segment_dialog():
+    step = st.session_state.get("_seg_step", 1)
+
+    if step == 1:
+        st.markdown(
+            '<div style="font-size:0.92rem;color:#475569;margin-bottom:14px;">'
+            '어떤 분이신가요? 딱 맞는 학습을 준비해드릴게요.</div>',
+            unsafe_allow_html=True,
+        )
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                f'<div style="text-align:center;padding:6px 0;">'
+                f'{icon("user",34,"#4F46E5")}</div>', unsafe_allow_html=True)
+            if st.button("학생이에요", key="seg_student", use_container_width=True, type="primary"):
+                st.session_state["_seg_role"] = "student"
+                st.session_state["_seg_step"] = 2
+                st.rerun()
+        with c2:
+            st.markdown(
+                f'<div style="text-align:center;padding:6px 0;">'
+                f'{icon("users",34,"#0891B2")}</div>', unsafe_allow_html=True)
+            if st.button("선생님이에요", key="seg_teacher", use_container_width=True):
+                st.session_state["_seg_role"] = "teacher"
+                st.session_state["_seg_step"] = 2
+                st.rerun()
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        if st.button("그냥 둘러볼게요", key="seg_skip1", use_container_width=True):
+            st.session_state["_seg_done"] = True
+            st.rerun()
+
+    else:  # step 2 — 학년/구분
+        role = st.session_state.get("_seg_role", "student")
+        st.markdown(
+            f'<div style="font-size:0.92rem;color:#475569;margin-bottom:6px;">'
+            f'{"학년을 알려주세요." if role=="student" else "어디서 가르치세요?"}</div>'
+            f'<div style="display:flex;gap:4px;margin-bottom:12px;">'
+            f'<span style="width:8px;height:8px;border-radius:50%;background:#D1D5DB;"></span>'
+            f'<span style="width:8px;height:8px;border-radius:50%;background:#4F46E5;"></span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        if role == "student":
+            opts = ["중1", "중2", "중3", "고1", "고2", "고3", "기타"]
+        else:
+            opts = ["공부방", "학원", "과외", "공교육", "기타"]
+
+        cols = st.columns(3)
+        for i, o in enumerate(opts):
+            if cols[i % 3].button(o, key=f"seg_lv_{o}", use_container_width=True):
+                level = o
+                if o == "기타":
+                    level = st.session_state.get("_seg_etc", "기타")
+                st.session_state["_seg_level"] = level
+                st.session_state["_seg_done"]  = True
+                st.session_state["_seg_welcome"] = _welcome_for(role, level)
+                _log_visitor_segment(role, level)
+                # 로그인 사용자면 학년도 프로필에 반영(학생만)
+                st.rerun()
+
+        if "기타" in opts:
+            st.text_input("기타 (직접 입력)", key="_seg_etc",
+                          placeholder="예: 인강 / 홈스쿨 …", label_visibility="collapsed")
+        if st.button("건너뛰기", key="seg_skip2", use_container_width=True):
+            st.session_state["_seg_done"] = True
+            st.rerun()
+
+
+# 트리거: 랜딩에서 ?start=1 로 진입 시 (세션당 1회)
+if st.query_params.get("start") == "1":
+    st.session_state["_seg_pending"] = True
+    st.query_params.clear()
+    st.rerun()
+
+if st.session_state.get("_seg_pending") and not st.session_state.get("_seg_done"):
+    _segment_dialog()
+
 # ── 업그레이드 페이지 (?upgrade=1) ────────────────────────────────
 if st.query_params.get("upgrade") == "1":
     from plans import checkout_url, STUDENT_FEATURES, PRO_FEATURES, current_plan
@@ -1208,7 +1389,7 @@ if st.query_params.get("upgrade") == "1":
 # ─────────────────────────────────────────────────────────────────────────────
 _PAGES = ["라이브러리", "새 노트 추가", "합치기 & 다운로드"]
 
-if "page"         not in st.session_state: st.session_state["page"]         = "라이브러리"
+if "page"         not in st.session_state: st.session_state["page"]         = "__dashboard__"  # 로그인 첫 화면 = 내 학습현황
 if "selected_ids" not in st.session_state: st.session_state["selected_ids"] = set()
 if "xlsx_bytes"   not in st.session_state: st.session_state["xlsx_bytes"]   = None
 if "current_xlsx" not in st.session_state: st.session_state["current_xlsx"] = None
@@ -1224,7 +1405,7 @@ if "lib_edit_id"   not in st.session_state: st.session_state["lib_edit_id"]   = 
 if "lib_print_id"  not in st.session_state: st.session_state["lib_print_id"]  = None
 
 # ── 학습 시스템 세션 상태 ──────────────────────────────────────────────────
-_STUDY_PAGES = ["반반 학습", "복습하기", "단어학습", "문법학습", "내신문제", "기출문제", "반쌤 채팅"]
+_STUDY_PAGES = ["반반 학습", "단어학습", "문법학습", "내신문제", "서술형 DNA", "기출문제", "복습하기"]
 _MGMT_PAGES  = ["오답노트", "약점 처방전", "비법노트", "숙제", "시험 요약노트", "내 클래스"]
 
 # 역할별 대시보드 메뉴 분리
@@ -1358,9 +1539,12 @@ with st.sidebar:
             else:
                 st.caption("학생을 추가하면 개인별 오답 기록이 저장됩니다.")
 
+    # ── 플랜 업그레이드 CTA는 사이드바 하단으로 이동 (디자인 회의 결정) ──
+    #    첫 시선을 가리지 않도록 메뉴 아래쪽에 미니멀 텍스트 링크로 배치.
+
     # ── 헤어라인 구분선 ────────────────────────────────────────────
     st.markdown(
-        '<hr style="border:none;border-top:1px solid #ECEEF3;margin:8px 0 4px;">',
+        '<hr style="border:none;border-top:1px solid #ECEEF3;margin:6px 0 4px;">',
         unsafe_allow_html=True,
     )
 
@@ -1375,8 +1559,8 @@ with st.sidebar:
     study_selected = option_menu(
         menu_title=None,
         options=_STUDY_PAGES,
-        icons=["house", "arrow-counterclockwise", "bookmark", "book-half",
-               "pencil-square", "cloud-upload", "chat-dots"],
+        icons=["house", "bookmark", "book-half", "pencil-square",
+               "vector-pen", "cloud-upload", "arrow-counterclockwise"],
         default_index=study_cur_idx,
         key="study_menu",
         styles=_omenu_styles("#7C3AED", "#5B21B6", "109,40,217"),
@@ -1386,6 +1570,19 @@ with st.sidebar:
     # 섹션 2: 학습 관리
     # ═══════════════════════════════════════════════════════════════
     _sb_label("학습 관리")
+    # FREE 사용자: 잠금 기능 뱃지 힌트
+    if current_plan() == "free":
+        st.markdown(
+            f'<div style="display:flex;gap:4px;flex-wrap:wrap;padding:2px 4px 6px;">'
+            f'<span style="background:#EEF2FF;color:#4338CA;border-radius:5px;'
+            f'padding:2px 7px;font-size:0.65rem;font-weight:700;">'
+            f'{icon("lock",10,"#4338CA")} 약점 처방전 PRO</span>'
+            f'<span style="background:#EEF2FF;color:#4338CA;border-radius:5px;'
+            f'padding:2px 7px;font-size:0.65rem;font-weight:700;">'
+            f'{icon("lock",10,"#4338CA")} 비법노트 PRO</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     mgmt_cur_idx = (
         _MGMT_PAGES.index(_sp)
         if _cur_page == "__study__" and _sp in _MGMT_PAGES else -1
@@ -1453,6 +1650,21 @@ with st.sidebar:
         if _cur_page in _PAGES:
             st.session_state["page"] = "__study__"
 
+    # ── PRO 업그레이드 — 사이드바 하단 미니멀 텍스트 링크 ──────────
+    #    FREE 사용자에게만. 첫 시선을 가리지 않게 메뉴 맨 아래에 가볍게.
+    if current_plan() == "free" and is_supabase_configured() and _auth.is_logged_in():
+        st.markdown(
+            f'<div style="padding:14px 12px 4px;">'
+            f'<a href="{checkout_url("pro")}" target="_blank" style="'
+            f'display:inline-flex;align-items:center;gap:5px;text-decoration:none;'
+            f'font-size:0.78rem;font-weight:700;color:#6366F1;">'
+            f'{icon("sparkles",13,"#6366F1")} PRO로 업그레이드 '
+            f'<span style="font-weight:800;">→</span></a>'
+            f'<div style="font-size:0.66rem;color:#94A3B8;margin-top:2px;">'
+            f'첫 달 무료 · 19,900원/월</div></div>',
+            unsafe_allow_html=True,
+        )
+
     # ── 네비게이션 결정 ────────────────────────────────────────────
     if study_selected != _prev_study_sel and study_selected in _STUDY_PAGES:
         st.session_state["study_page"]      = study_selected
@@ -1479,34 +1691,9 @@ with st.sidebar:
         st.session_state["_prev_mgmt_sel"]  = mgmt_selected
         st.session_state["_prev_dash_sel"]  = dash_selected
 
-    # ── 플랜 뱃지 ─────────────────────────────────────────────────
-    _plan = current_plan()
-    _plan_colors = {
-        "free":    ("#F1F5F9", "#64748B", "FREE"),
-        "student": ("#EEF2FF", "#4338CA", "STUDENT"),
-        "pro":     ("#FEF3C7", "#92400E", "PRO"),
-    }
-    _pbg, _pfc, _plabel = _plan_colors.get(_plan, _plan_colors["free"])
-    _upgrade_link = (
-        ""
-        if _plan == "pro"
-        else f'<a href="{checkout_url("pro")}" target="_blank" style="font-size:0.72rem;'
-             'color:#4F46E5;font-weight:700;text-decoration:none;">업그레이드 →</a>'
-    )
-    st.markdown(
-        f'<div style="display:flex;align-items:center;justify-content:space-between;'
-        f'background:{_pbg};border-radius:10px;padding:8px 12px;margin-bottom:8px;">'
-        f'<div style="font-size:0.78rem;color:{_pfc};font-weight:700;">'
-        f'{icon("zap",13,_pfc)} {_plabel} 플랜</div>'
-        f'{_upgrade_link}</div>',
-        unsafe_allow_html=True,
-    )
-    if _plan == "free" and is_supabase_configured() and _auth.is_logged_in():
-        ai_usage_bar()
-
     # ── 하단 크레딧 ───────────────────────────────────────────────
     st.markdown(
-        '<hr style="border:none;border-top:1px solid #ECEEF3;margin:4px 0 8px;">',
+        '<hr style="border:none;border-top:1px solid #ECEEF3;margin:10px 0 8px;">',
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -3149,6 +3336,18 @@ if st.session_state.get("_show_onboarding") and _auth.is_logged_in():
 # ─────────────────────────────────────────────────────────────────────────────
 current = st.session_state["page"]
 
+# 세그먼트 선택 직후 맞춤 웰컴 1회 표시
+_seg_welcome = st.session_state.pop("_seg_welcome", None)
+if _seg_welcome:
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#4F46E5,#7C3AED);color:white;'
+        f'border-radius:14px;padding:16px 20px;margin-bottom:14px;'
+        f'box-shadow:0 8px 24px rgba(79,70,229,0.25);">'
+        f'<div style="display:flex;align-items:center;gap:9px;font-size:0.98rem;font-weight:700;">'
+        f'{icon("party-popper",18,"white")} {_seg_welcome}</div></div>',
+        unsafe_allow_html=True,
+    )
+
 if current == "라이브러리":
     page_library()
 elif current == "새 노트 추가":
@@ -3220,6 +3419,13 @@ elif current == "__study__":
         if note_id:
             note = _enrich_note(get_note(note_id))
             page_exam(note, student_id, api_cfg)
+
+    elif study_page == "서술형 DNA":
+        from study_essay import page_essay
+        note_id = _study_note_selector(notes, "서술형 DNA", "vector-pen", "#7C3AED")
+        if note_id:
+            note = _enrich_note(get_note(note_id))
+            page_essay(note, student_id, student_name, api_cfg)
 
     elif study_page == "오답노트":
         from study_wrongnote import page_wrong_note

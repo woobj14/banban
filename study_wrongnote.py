@@ -336,8 +336,9 @@ _SOURCE_LABEL = {
     "exam":      ("내신 문제", "#0891b2", "#eff6ff"),
     "past":      ("기출 문제", "#059669", "#f0fdf4"),
     "past_exam": ("기출 문제", "#059669", "#f0fdf4"),  # study_upload.py alias
+    "essay":     ("서술형 DNA", "#7c3aed", "#f5f3ff"),  # study_essay.py
 }
-_SOURCE_ICON = {"grammar": "📝", "exam": "📋", "past": "📄", "past_exam": "📄"}
+_SOURCE_ICON = {"grammar": "📝", "exam": "📋", "past": "📄", "past_exam": "📄", "essay": "✍️"}
 
 
 def _render_question_wrongnotes(student_id: int, student_name: str,

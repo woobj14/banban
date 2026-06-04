@@ -66,13 +66,12 @@ STUDENT_FEATURES = [
 
 def current_plan() -> str:
     """현재 로그인 사용자의 플랜 ('free'|'student'|'pro').
-    admin 역할은 항상 'pro' 반환.
-    Supabase 미설정·비로그인 시 'free' 반환.
-    플랜 만료 확인 포함.
+    admin(서비스 운영자)만 항상 'pro'. 선생님·학생은 실제 결제 플랜을 따름.
+    Supabase 미설정·비로그인 시 'free' 반환. 플랜 만료 확인 포함.
     """
     role = st.session_state.get("sb_role", "")
-    if role in ("admin", "teacher"):
-        # 교사/관리자는 일단 pro 취급 (베타 기간 전략)
+    if role == "admin":
+        # 서비스 운영자(관리자)만 무조건 pro
         return "pro"
 
     plan = st.session_state.get("sb_plan", "free") or "free"

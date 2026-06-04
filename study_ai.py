@@ -1862,3 +1862,247 @@ def generate_comprehension_aids(dialogues: list, sections: list,
         }
     except Exception:
         return {"dialogue_points": {}, "section_summaries": {}}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 서술형 DNA — 노트 기반 내신형 서술형 문제 생성 + AI 채점
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 서술형 유형: 노트 3섹션(단어/대화문/본문)에 매핑되는 출제 의도
+_ESSAY_TYPES = {
+    "영작":     "주어진 우리말을 영어 문장으로 옮겨 쓰는 조건 영작 (지정 단어 사용·어순)",
+    "문장완성": "일부가 빈 영어 문장을 문맥에 맞게 완성 (스캐폴딩 중간 단계에 적합)",
+    "요약":     "본문/대화문의 핵심을 한두 문장으로 요약 (영어 또는 우리말)",
+    "이유설명": "본문 내용에 대해 '왜?'를 영어로 서술 (근거 문장 인용 권장)",
+    "빈칸서술": "핵심 표현을 빈칸으로 두고 의미에 맞는 표현을 직접 서술",
+}
+
+
+def generate_essay_questions(
+    text_data: dict,
+    words: list[tuple],
+    dialogues: list[dict],
+    api_config: dict,
+    n_questions: int = 3,
+    scope: str = "전체",
+    difficulty: str = "medium",
+    avoid: list[str] | None = None,
+) -> list[dict]:
+    """반반쌤 서술형 DNA 문제 생성.
+
+    우리 앱만의 5가지 특징을 모두 반영:
+      ① 노트 DNA   — scope 범위의 노트 자료에서만 출제
+      ② 내신 조건  — 단어 수 제한·지정 어휘 등 실제 내신 조건 부여
+      ③ 스캐폴딩    — 각 문제에 3단계(빈칸→문장완성→자유서술)
+      ④ AI 채점용   — 모범답안 + 핵심 키워드(채점 루브릭) 동봉
+      ⑤ (복습 연동은 호출부에서 처리)
+
+    Returns list of:
+    {
+      "type": "영작"|"문장완성"|"요약"|"이유설명"|"빈칸서술",
+      "source": "단어"|"대화문"|"본문",
+      "question": str,            # 서술형 발문 (한국어 지시문)
+      "passage": str,             # 근거 지문 (있으면)
+      "constraints": str,         # 내신 조건 (예: "given 단어 포함, 8단어 이내")
+      "model_answer": str,        # 모범답안
+      "keywords": list[str],      # 채점 핵심 키워드 (루브릭)
+      "scaffold": {               # 스캐폴딩 3단계
+          "step1_blank": str,     # 빈칸형 (가장 쉬움)
+          "step1_answer": str,
+          "step2_hint": str,      # 문장완성 힌트
+      },
+      "answer_kr": str,           # 한국어 해설
+      "difficulty": str,
+    }
+    """
+    use_word = scope in ("단어", "전체")
+    use_dlg  = scope in ("대화문", "전체")
+    use_text = scope in ("본문", "전체")
+
+    passage_lines = []
+    if text_data.get("sections"):
+        for sec in text_data["sections"]:
+            for en, kr in sec.get("sentences", []):
+                passage_lines.append(f"{en}  ({kr})")
+    elif text_data.get("sentences"):
+        for en, kr in text_data.get("sentences", []):
+            passage_lines.append(f"{en}  ({kr})")
+    passage_text = "\n".join(passage_lines[:25]) if use_text else ""
+
+    word_list = "\n".join(f"- {en}: {kr}" for en, kr in words[:30]) if use_word else ""
+    dlg_text  = ""
+    if use_dlg:
+        for dlg in dialogues[:3]:
+            dlg_text += f"\n[{dlg.get('title','대화문')}]\n"
+            for en, kr in dlg.get("lines", [])[:8]:
+                dlg_text += f"  {en}  ({kr})\n"
+
+    diff_desc = _DIFFICULTY_DESC.get(difficulty, _DIFFICULTY_DESC["medium"])
+
+    _SCOPE_GUIDE = {
+        "단어":   "지정 단어를 활용한 조건 영작·문장완성 위주로 출제.",
+        "대화문": "대화 상황을 설명하거나 빈 대사를 서술하는 문제 위주로 출제.",
+        "본문":   "본문 요약·이유 설명·핵심 표현 서술 위주로 출제.",
+        "전체":   "단어·대화문·본문을 골고루 활용해 다양한 서술형으로 출제.",
+    }
+    scope_guide = _SCOPE_GUIDE.get(scope, _SCOPE_GUIDE["전체"])
+
+    avoid = avoid or []
+    avoid_block = ""
+    if avoid:
+        sample = [a for a in avoid if a][-30:]
+        avoid_block = (
+            "\n[이미 출제된 서술형 — 중복 금지]\n"
+            + "\n".join(f"- {a[:80]}" for a in sample)
+            + "\n위와 똑같거나 거의 비슷한 문제는 만들지 마세요.\n"
+        )
+
+    prompt = f"""당신은 대한민국 최고의 영어 선생님 반반쌤입니다.
+내신 서술형 비중이 급증하는 흐름에 맞춰, 학생이 '외우지 말고 생각하게' 만드는
+서술형 문제를 출제합니다. 아래 학습 자료(이 학생이 실제로 공부한 반반노트)에서만 출제하세요.
+{avoid_block}
+
+[학습 자료]
+== 본문 ==
+{passage_text if passage_text.strip() else "(이번 범위 아님)"}
+
+== 단어 ==
+{word_list if word_list.strip() else "(이번 범위 아님)"}
+
+== 대화문 ==
+{dlg_text if dlg_text.strip() else "(이번 범위 아님)"}
+
+[출제 조건 — 반드시 지킬 것]
+- 범위: {scope} — {scope_guide}
+- 난이도: {diff_desc}
+- 문제 수: {n_questions}개
+- 서술형 유형(다양하게): {', '.join(_ESSAY_TYPES.keys())}
+- ★실제 내신 서술형 조건을 반드시 부여★ (예: "주어진 단어를 모두 사용", "8단어 이내로",
+  "현재완료 시제로", "두 문장으로"). 이 조건을 'constraints' 필드에 한국어로 명시.
+- ★스캐폴딩 3단계★: 같은 핵심을 묻되 난이도를 3단계로 —
+  step1_blank(빈칸 1개만 채우는 가장 쉬운 형태) → step2_hint(문장완성 힌트) → 자유서술(question 본문).
+  서술형이 무서운 학생도 step1부터 도전해 성취감을 얻게 합니다.
+- ★채점용★: 'model_answer'(모범답안)와 'keywords'(채점 시 반드시 들어가야 할 핵심 표현 2~4개)를 제공.
+- 'passage'에는 그 문제가 근거한 실제 노트 문장을 그대로 넣으세요(없으면 "").
+
+반드시 아래 JSON만 반환 (다른 텍스트 금지):
+{{
+  "questions": [
+    {{
+      "type": "영작",
+      "source": "본문",
+      "question": "다음 우리말을 주어진 조건에 맞게 영어로 쓰시오: '지민이는 지하철역에서 친구를 만났다.'",
+      "passage": "Jimin met her friend, Sora, at the subway station.",
+      "constraints": "given 단어(meet, subway station)를 모두 사용 · 과거시제 · 한 문장",
+      "model_answer": "Jimin met her friend at the subway station.",
+      "keywords": ["met", "subway station"],
+      "scaffold": {{
+        "step1_blank": "Jimin _____ her friend at the subway station. (meet의 알맞은 형태)",
+        "step1_answer": "met",
+        "step2_hint": "주어(Jimin) + 동사(met) + 목적어(her friend) + 장소 순서로 배열해 보세요."
+      }},
+      "answer_kr": "meet의 과거형 met, 장소 표현 at the subway station이 핵심입니다.",
+      "difficulty": "{difficulty}"
+    }}
+  ]
+}}"""
+
+    try:
+        raw  = _call_text(prompt, api_config)
+        data = _parse_json(raw)
+        qs   = data.get("questions", [])
+        seen = {_norm_q(a) for a in avoid}
+        valid = []
+        for q in qs:
+            if q.get("question") and q.get("model_answer"):
+                key = _norm_q(q["question"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                q.setdefault("difficulty", difficulty)
+                q.setdefault("keywords", [])
+                q.setdefault("scaffold", {})
+                q.setdefault("constraints", "")
+                valid.append(q)
+        return valid
+    except Exception:
+        return []
+
+
+def grade_essay_answer(
+    question: str,
+    model_answer: str,
+    keywords: list[str],
+    user_answer: str,
+    api_config: dict,
+    constraints: str = "",
+) -> dict:
+    """서술형 답안 AI 채점 — 부분점수 + 개선 피드백.
+
+    단순 O/X가 아니라 "이렇게 바꾸면 더 좋아요"를 돌려주는 게 핵심 차별점.
+
+    Returns:
+    {
+      "score": int,          # 0~100 (의미 일치도 기반 부분점수)
+      "passed": bool,        # 70점 이상이면 통과
+      "matched": list[str],  # 포함된 핵심 키워드
+      "missing": list[str],  # 빠진 핵심 키워드
+      "feedback": str,       # 잘한 점 1문장 (격려)
+      "improve": str,        # 개선 제안 1문장 ("이렇게 바꾸면 더 좋아요")
+      "grammar": str,        # 문법 지적 (있으면, 없으면 "")
+    }
+    """
+    if not user_answer.strip():
+        return {"score": 0, "passed": False, "matched": [], "missing": keywords,
+                "feedback": "", "improve": "답을 입력해주세요.", "grammar": ""}
+
+    kw_line = ", ".join(keywords) if keywords else "(지정 없음)"
+    prompt = f"""당신은 따뜻하지만 꼼꼼한 영어 선생님 반반쌤입니다.
+중학생의 영어 서술형 답안을 채점합니다. 정답/오답만 알려주지 말고,
+'어떻게 하면 더 잘 쓸 수 있는지'를 반드시 알려주세요.
+
+[문제] {question}
+[출제 조건] {constraints or "(없음)"}
+[모범답안] {model_answer}
+[채점 핵심 키워드] {kw_line}
+[학생 답안] {user_answer}
+
+채점 기준:
+- 핵심 의미가 맞으면 표현이 모범답안과 달라도 인정 (의미 일치도 중심)
+- 핵심 키워드/표현이 들어갔는지 확인 → matched/missing 으로 구분
+- 출제 조건(단어 수·지정 어휘·시제 등) 충족 여부 반영
+- score: 의미 일치도 + 조건 충족 + 문법을 종합한 0~100 부분점수
+- 70점 이상이면 passed=true
+- feedback: 학생이 잘한 점 1문장 (격려 톤)
+- improve: 더 나은 답안을 위한 구체적 제안 1문장 (예: "meet을 과거형 met으로 바꾸면 완벽해요")
+- grammar: 문법 오류가 있으면 짧게 지적, 없으면 ""
+
+반드시 아래 JSON만 반환 (다른 텍스트 금지):
+{{"score": 85, "passed": true, "matched": ["met"], "missing": ["subway station"],
+  "feedback": "장소 표현을 정확히 썼어요!", "improve": "meet을 과거형 met으로 바꾸면 완벽해요.",
+  "grammar": "시제(과거)에 주의하세요."}}"""
+
+    try:
+        raw  = _call_text(prompt, api_config)
+        data = _parse_json(raw)
+        score  = int(data.get("score", 0))
+        return {
+            "score":    max(0, min(100, score)),
+            "passed":   bool(data.get("passed", score >= 70)),
+            "matched":  data.get("matched", []),
+            "missing":  data.get("missing", []),
+            "feedback": data.get("feedback", ""),
+            "improve":  data.get("improve", ""),
+            "grammar":  data.get("grammar", ""),
+        }
+    except Exception:
+        # Fallback: 키워드 포함 여부로 단순 채점
+        ua = user_answer.lower()
+        matched = [k for k in keywords if k.lower() in ua]
+        missing = [k for k in keywords if k.lower() not in ua]
+        score   = int(len(matched) / len(keywords) * 100) if keywords else 50
+        return {
+            "score": score, "passed": score >= 70,
+            "matched": matched, "missing": missing,
+            "feedback": "", "improve": f"모범답안: {model_answer}", "grammar": "",
+        }

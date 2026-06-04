@@ -253,10 +253,14 @@ def sign_up_student(
     username: str,
     display_name: str,
     password: str,
-    invite_code: str,
+    invite_code: str = "",
+    contact_email: str = "",
+    phone: str = "",
 ) -> tuple[bool, str]:
-    """학생 가입 (이메일 없이 아이디+초대코드로 가입).
-    내부적으로 '{username}@students.banban.app' 가상 이메일 사용.
+    """학생 가입. 학생 아이디(username) 기반 로그인.
+    - 선생님 코드 입력 O → 선생님 반에 연결, 선생님 플랜을 따라감
+    - 선생님 코드 입력 X → 개인 FREE 회원 (결제 시 유료)
+    연락처(phone)·실이메일(contact_email)은 선택 입력.
     → (성공, 메시지)
     """
     username = username.strip().lower()
@@ -265,29 +269,32 @@ def sign_up_student(
         return False, "학생 아이디는 영문/숫자/밑줄(_), 3~20자만 사용 가능합니다."
     if not display_name.strip():
         return False, "이름을 입력해주세요."
-    if not invite_code.strip():
-        return False, "초대 코드를 입력해주세요."
     pw_errors = validate_password(password)
     if pw_errors:
         return False, "비밀번호 조건 미충족: " + " / ".join(pw_errors)
 
-    # 초대코드 검증
-    valid, teacher_name, class_label, err = validate_invite_code(invite_code)
-    if not valid:
-        return False, err
+    # 초대코드는 선택 — 입력한 경우에만 검증
+    teacher_id  = None
+    class_label = ""
+    code_clean  = invite_code.strip().upper()
+    if code_clean:
+        valid, teacher_name, class_label, err = validate_invite_code(code_clean)
+        if not valid:
+            return False, err
 
     virtual_email = f"{username}@students.banban.app"
 
     try:
         sb = get_supabase()
 
-        # 코드에서 teacher_id 가져오기
-        code_row = sb.table("invite_codes") \
-            .select("teacher_id, current_uses, max_uses") \
-            .eq("code", invite_code.strip().upper()) \
-            .single() \
-            .execute()
-        teacher_id  = code_row.data["teacher_id"]
+        # 코드 있으면 teacher_id 조회
+        if code_clean:
+            code_row = sb.table("invite_codes") \
+                .select("teacher_id, current_uses, max_uses") \
+                .eq("code", code_clean) \
+                .single() \
+                .execute()
+            teacher_id = code_row.data["teacher_id"]
 
         # Supabase Auth 계정 생성
         result = sb.auth.sign_up({
@@ -309,27 +316,37 @@ def sign_up_student(
         uid = result.user.id
 
         # profiles 행 생성/업데이트
+        # 코드 없으면 plan='free'(개인), 코드 있으면 로그인 시 선생님 plan을 따라감
         sb.table("profiles").upsert({
-            "id":          uid,
-            "email":       virtual_email,
-            "name":        display_name.strip(),
-            "username":    username,
-            "role":        "student",
-            "teacher_id":  teacher_id,
-            "class_label": class_label,
-            "join_code":   invite_code.strip().upper(),
+            "id":            uid,
+            "email":         virtual_email,
+            "name":          display_name.strip(),
+            "username":      username,
+            "role":          "student",
+            "teacher_id":    teacher_id,
+            "class_label":   class_label,
+            "join_code":     code_clean,
+            "contact_email": contact_email.strip(),
+            "phone":         phone.strip(),
+            "plan":          "free",
         }, on_conflict="id").execute()
 
-        # 초대코드 사용 횟수 증가 (atomic)
-        try:
-            sb.rpc("increment_invite_code_use",
-                   {"p_code": invite_code.strip().upper()}).execute()
-        except Exception:
-            pass  # Supabase 함수 미등록 환경 대비
+        # 코드 사용 시 카운트 증가
+        if code_clean:
+            try:
+                sb.rpc("increment_invite_code_use",
+                       {"p_code": code_clean}).execute()
+            except Exception:
+                pass
 
+        if teacher_id:
+            return True, (
+                f"가입 완료! {display_name.strip()} 학생 환영해요.\n"
+                f"선생님 반에 연결되었어요. 로그인: 학생 아이디 [{username}] + 비밀번호"
+            )
         return True, (
-            f"가입 완료! {display_name.strip()} 학생 환영해요 👋\n"
-            f"로그인: 학생 아이디 [{username}] + 비밀번호"
+            f"가입 완료! {display_name.strip()} 학생 환영해요.\n"
+            f"개인 회원으로 가입됐어요. 로그인: 학생 아이디 [{username}] + 비밀번호"
         )
 
     except Exception as e:
@@ -582,8 +599,21 @@ def _load_profile(uid: str):
             st.session_state["sb_class_label"]  = p.get("class_label", "")
             st.session_state["sb_grade"]        = p.get("grade", "") or meta.get("grade", "")
             st.session_state["study_student"]   = p.get("name", "") or meta.get("name", "")
-            st.session_state["sb_plan"]         = p.get("plan", "free") or "free"
-            st.session_state["sb_plan_expires"] = p.get("plan_expires_at")
+            _own_plan = p.get("plan", "free") or "free"
+            _own_exp  = p.get("plan_expires_at")
+            # 선생님 코드로 연결된 학생 → 선생님 플랜을 따라감 (동적 상속)
+            _t_id = p.get("teacher_id")
+            if role == "student" and _t_id:
+                try:
+                    _t = sb.table("profiles").select("plan, plan_expires_at") \
+                           .eq("id", _t_id).single().execute()
+                    if _t.data and _t.data.get("plan"):
+                        _own_plan = _t.data["plan"]
+                        _own_exp  = _t.data.get("plan_expires_at")
+                except Exception:
+                    pass
+            st.session_state["sb_plan"]         = _own_plan
+            st.session_state["sb_plan_expires"] = _own_exp
         else:
             # profiles 행 자체가 없으면 metadata로만 세션 구성 + 행 생성 시도
             role = meta.get("role", "student")

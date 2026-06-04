@@ -29,3 +29,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Supabase CLI 로컬 임시 상태
+supabase/.temp/
