@@ -684,11 +684,32 @@ def _render_account_sidebar():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _api_config() -> dict | None:
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return {"type": "anthropic", "key": os.environ["ANTHROPIC_API_KEY"]}
-    if os.environ.get("GEMINI_API_KEY"):
-        return {"type": "gemini", "key": os.environ["GEMINI_API_KEY"]}
-    return None
+    """멀티키 폴백 체인 설정.
+
+    호출 순서:
+      1) Gemini 키1 (GEMINI_API_KEY)
+      2) Gemini 키2 (GEMINI_API_KEY_2) — 키1 429/실패 시
+      3) Claude Haiku (ANTHROPIC_API_KEY) — Gemini 전부 실패 시
+    키가 하나도 없으면 None.
+    """
+    gemini_key    = os.environ.get("GEMINI_API_KEY",   "").strip()
+    gemini_key2   = os.environ.get("GEMINI_API_KEY_2", "").strip()
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY","").strip()
+
+    gemini_keys = [k for k in [gemini_key, gemini_key2] if k]
+
+    if not gemini_keys and not anthropic_key:
+        return None
+
+    primary = gemini_keys[0] if gemini_keys else anthropic_key
+    return {
+        "type":          "gemini" if gemini_keys else "anthropic",
+        "key":           primary,
+        "gemini_keys":   gemini_keys,        # Gemini 키 목록 (폴백 순서)
+        "anthropic_key": anthropic_key,
+        # 하위 호환
+        "gemini_key":    gemini_keys[0] if gemini_keys else "",
+    }
 
 def _has_api() -> bool:
     return _api_config() is not None

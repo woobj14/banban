@@ -231,23 +231,47 @@ def list_secret_notes(note_id: int | None = None) -> list[dict]:
 # 기출문제
 # ─────────────────────────────────────────────────────────────────────────────
 
-def save_past_problems(note_id: int, source_name: str, problems: list) -> int:
+def save_past_problems(note_id: int, source_name: str, problems: list,
+                       exam_year: str = "", publisher: str = "",
+                       semester: str = "", exam_type: str = "") -> int:
     sb = get_supabase()
     result = sb.table("past_problems").insert({
         "note_id":     note_id,
         "source_name": source_name,
         "problems":    problems,   # JSONB
+        "exam_year":   exam_year,
+        "publisher":   publisher,
+        "semester":    semester,
+        "exam_type":   exam_type,
     }).execute()
     return result.data[0]["id"]
 
 
-def list_past_problems(note_id: int | None = None) -> list[dict]:
+def list_past_problems(note_id: int | None = None,
+                       exam_year: str = "", semester: str = "",
+                       exam_type: str = "") -> list[dict]:
     sb = get_supabase()
     q  = sb.table("past_problems").select("*")
-    if note_id:
-        q = q.eq("note_id", note_id)
+    if note_id:    q = q.eq("note_id",   note_id)
+    if exam_year:  q = q.eq("exam_year", exam_year)
+    if semester:   q = q.eq("semester",  semester)
+    if exam_type:  q = q.eq("exam_type", exam_type)
     result = q.order("created_at", desc=True).execute()
     return result.data or []
+
+
+def update_past_problems(pp_id: int, **kwargs):
+    """저장된 기출의 출처·메타 수정 (source_name/exam_year/publisher/semester/exam_type)."""
+    allowed = {"source_name", "exam_year", "publisher", "semester", "exam_type"}
+    payload = {k: v for k, v in kwargs.items() if k in allowed}
+    if not payload:
+        return
+    get_supabase().table("past_problems").update(payload).eq("id", pp_id).execute()
+
+
+def delete_past_problems(pp_id: int):
+    """저장된 기출 삭제 (Supabase) — 기존 SQLite 삭제 버그 대체."""
+    get_supabase().table("past_problems").delete().eq("id", pp_id).execute()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

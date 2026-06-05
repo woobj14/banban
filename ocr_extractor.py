@@ -47,7 +47,7 @@ def _call_anthropic(image_bytes: bytes, prompt: str, api_key: str) -> str:
     client = anthropic.Anthropic(api_key=api_key)
     b64, mime = _encode_image(image_bytes)
     resp = client.messages.create(
-        model="claude-opus-4-5",
+        model="claude-haiku-4-5",   # Opus → Haiku (이미지 OCR도 충분)
         max_tokens=4096,
         messages=[{
             "role": "user",
@@ -85,18 +85,43 @@ def _call_gemini(image_bytes: bytes, prompt: str, api_key: str,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _call_ai(image_bytes: bytes, prompt: str, api_config: dict) -> str:
-    """이미지 + 텍스트 프롬프트 → AI 응답"""
-    atype = api_config.get("type", "")
-    key   = api_config.get("key", "")
-    if not key:
+    """이미지 + 텍스트 프롬프트 → AI 응답 (3단 폴백 체인).
+
+    호출 순서: Gemini 키1 → Gemini 키2 → Claude Haiku
+    """
+    gemini_keys   = api_config.get("gemini_keys") or []
+    anthropic_key = api_config.get("anthropic_key", "").strip()
+
+    # 구형 단일 키 방식 하위 호환
+    if not gemini_keys:
+        atype = api_config.get("type", "")
+        key   = api_config.get("key", "").strip()
+        gk    = api_config.get("gemini_key", "").strip()
+        if gk:   gemini_keys = [gk]
+        elif atype == "gemini" and key:    gemini_keys = [key]
+        elif atype == "anthropic" and key: anthropic_key = anthropic_key or key
+
+    if not gemini_keys and not anthropic_key:
         raise ValueError("API 키가 설정되지 않았습니다.")
 
-    if atype == "anthropic":
-        return _call_anthropic(image_bytes, prompt, key)
-    elif atype == "gemini":
-        return _call_gemini(image_bytes, prompt, key)
-    else:
-        raise ValueError(f"알 수 없는 API 타입: {atype}")
+    last_err = None
+
+    # ── Gemini 키 순서대로 시도 ─────────────────────────────────────
+    for gkey in gemini_keys:
+        try:
+            return _call_gemini(image_bytes, prompt, gkey)
+        except Exception as e:
+            last_err = e
+            continue
+
+    # ── Claude Haiku 폴백 ────────────────────────────────────────────
+    if anthropic_key:
+        try:
+            return _call_anthropic(image_bytes, prompt, anthropic_key)
+        except Exception as e:
+            last_err = e
+
+    raise ValueError(f"이미지 OCR 모든 AI 실패: {last_err}")
 
 
 def _call_ai_text(prompt: str, api_config: dict) -> str:

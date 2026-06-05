@@ -4,7 +4,8 @@
 import streamlit as st
 from datetime import date
 from icons import icon, section_md, title_md
-from study_db import save_past_problems, list_past_problems, add_question_wrong
+from study_db import (save_past_problems, list_past_problems, add_question_wrong,
+                      update_past_problems, delete_past_problems)
 from study_ai import extract_past_problems_from_text
 
 
@@ -12,32 +13,93 @@ from study_ai import extract_past_problems_from_text
 # AI 이미지 추출 프롬프트 (밑줄 보존 포함)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_IMG_PROMPT = """이 시험 문제지 이미지에서 문제와 답을 추출하세요.
+_IMG_PROMPT = """당신은 대한민국 중학교 영어 시험지 전문 분석가입니다.
+이 시험 문제지 이미지를 아주 꼼꼼하게 읽고, 모든 문제를 빠짐없이 추출하세요.
 
-⚠️ 중요 규칙:
-- 밑줄이 그어진 단어·구절은 반드시 <u>해당 텍스트</u> 형태로 표시 (HTML 태그)
-  예: "She <u>have</u> gone to school."
-- 번호로 표시된 선택지(①②③④⑤)는 보기 배열에 그대로 보존
-- 답은 정확한 선택지 번호+텍스트로 작성 (예: "② have gone")
-- 답이 이미지에 없으면 answer는 ""
-- 지문(passage)이 있으면 반드시 passage 필드에 분리
+━━━━ 반드시 지켜야 할 추출 규칙 ━━━━
 
-반드시 아래 JSON 형식만 반환 (다른 텍스트 절대 금지):
+【발문 추출】
+- 문제 번호 옆의 한국어 지시문을 question 필드에 완전하게 추출
+  예) "다음 글을 읽고 아래 질문에 대한 알맞은 대답이 되도록 빈칸을 완성하시오."
+- 조건 표시 (각 빈칸에 한 단어씩, 단어를 변형할 것 등)도 반드시 포함
+
+【지문(passage) 추출】
+- 박스·테두리로 묶인 영어 지문은 passage 필드에 완전하게 추출
+- 지문 안의 밑줄 친 단어/구절은 <u>해당텍스트</u> 로 표시
+- (A)(B)(C) 등 표시도 그대로 보존
+
+【서술형 문제 처리】
+- 빈칸(_____)이 있는 문장은 빈칸을 ___ 로 표시하여 그대로 추출
+  예) "As the school's ___ ___, Mr. Kim works hard..."
+- "→ She ___." 형태의 답 작성란도 sub_questions에 포함
+- 소문항 (1), (2) 등이 있으면 sub_questions 배열에 각각 추가
+  각 소문항: {"label": "(1)", "question": "What does Ms. Lee do?", "answer_line": "→ She ___."}
+
+【선택지 처리】
+- ①②③④⑤ 번호가 있는 선택지는 options 배열에 그대로 보존
+- 순서 배열 문제의 (A)(B)(C)는 보기를 options에 넣고 type은 "순서배열"
+
+【밑줄 표시】
+- 밑줄 친 단어/구절 → <u>텍스트</u> HTML 태그 사용
+  예) "B: I'll do it. And (A)<u>maybe Mingyu will join us, too</u>."
+
+【기타】
+- 답이 이미지에 없으면 answer: ""
+- 배점이 보이면 points에 숫자로
+- 문제 번호(27, 28, 29...)는 반드시 number 필드에
+
+━━━━ JSON 형식 ━━━━
+반드시 아래 형식만 반환 (다른 텍스트 절대 금지):
 {
   "problems": [
     {
-      "number": 1,
-      "type": "객관식",
-      "passage": "지문이 있을 경우 여기에 (없으면 빈 문자열). 밑줄 포함 시 <u>텍스트</u> 사용",
-      "question": "문제 내용. 밑줄 부분은 <u>텍스트</u> 형태로 표시",
-      "options": ["① 보기1", "② 보기2", "③ 보기3", "④ 보기4"],
-      "answer": "② 보기2",
+      "number": 27,
+      "type": "서술형",
+      "passage": "Drum roll, please! The first winner is the facilities manager, Mr. Kim! ...",
+      "question": "다음 글을 아래와 같이 요약하고자 할 때, 빈칸에 들어갈 알맞은 말을 각각 찾아 쓰시오. (각 빈칸에 한 단어씩 쓰고 필요시 변형할 것)",
+      "answer_template": "As the school's ___ ___, Mr. Kim works hard for a good learning environment by managing ___ ___ and ___ facilities like broken air conditioners.",
+      "sub_questions": [],
+      "options": [],
+      "answer": "",
+      "points": 4
+    },
+    {
+      "number": 29,
+      "type": "서술형",
+      "passage": "The next award goes to ... the leader of the cafeteria staff, Ms. Lee! ...",
+      "question": "다음 글을 읽고 아래 질문에 대한 알맞은 대답이 되도록 빈칸을 완성하시오.",
+      "answer_template": "",
+      "sub_questions": [
+        {"label": "(1)", "question": "What does Ms. Lee do after lunchtime?", "answer_line": "→ She ___."},
+        {"label": "(2)", "question": "Why is Ms. Lee proud of her job?", "answer_line": "→ Because she ___ to the students."}
+      ],
+      "options": [],
+      "answer": "",
+      "points": 4
+    },
+    {
+      "number": 30,
+      "type": "순서배열",
+      "passage": "Now it's time to announce our final winner. ...",
+      "question": "다음 주어진 글에 이어질 순서로 알맞은 것은?",
+      "answer_template": "",
+      "sub_questions": [],
+      "options": ["① (A)-(C)-(B)", "② (B)-(A)-(C)", "③ (B)-(C)-(A)", "④ (C)-(A)-(B)", "⑤ (C)-(B)-(A)"],
+      "answer": "",
       "points": 3
     }
   ]
 }
-- type: 객관식 / 서술형 / 단답형
-- 순수 JSON만 반환"""
+
+type 값: 객관식 / 서술형 / 단답형 / 순서배열 / 빈칸완성 / 어법
+순수 JSON만 반환. 이미지의 모든 문제를 빠짐없이 추출."""
+
+
+def _extract_school(source_name: str) -> str:
+    """source_name('… · OO중학교')에서 학교명 부분 추출."""
+    if " · " in source_name:
+        return source_name.split(" · ", 1)[1].strip()
+    return ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -78,10 +140,35 @@ def page_upload(note: dict | None, api_config: dict | None,
 
     # ── 탭 1: 업로드 ──────────────────────────────────────────────
     with tab_upload:
-        source_name = st.text_input(
-            "출처", key="upload_source",
-            placeholder="예: 2024년 1학기 중간고사, OO중학교 기출",
+        # ── 출처 정보 (구조화 입력 → 통일된 형식으로 저장) ──────────
+        st.markdown(
+            '<div style="font-size:0.82rem;font-weight:700;color:#0f766e;'
+            'margin-bottom:4px;">출처 정보 <span style="font-weight:400;color:#94a3b8;">'
+            '— 통일된 형식으로 저장돼 학생이 쉽게 찾아요</span></div>',
+            unsafe_allow_html=True,
         )
+        _cy        = date.today().year
+        _pub_opts  = ["YBM", "NE능률", "천재교육", "동아출판", "비상교육",
+                      "미래엔", "지학사", "금성출판사", "기타"]
+        _note_pub  = (note or {}).get("publisher", "")
+        _pub_idx   = _pub_opts.index(_note_pub) if _note_pub in _pub_opts else 0
+
+        sc1, sc2, sc3, sc4 = st.columns(4)
+        src_year = sc1.selectbox("연도", [str(y) for y in range(_cy, _cy - 5, -1)],
+                                 key="src_year")
+        src_pub  = sc2.selectbox("출판사", _pub_opts, index=_pub_idx, key="src_pub")
+        src_sem  = sc3.selectbox("학기", ["1학기", "2학기"], key="src_sem")
+        src_exam = sc4.selectbox("시험", ["중간고사", "기말고사", "모의고사", "기타"],
+                                 key="src_exam")
+        src_school = st.text_input("학교명 (선택)", placeholder="예: OO중학교",
+                                   key="src_school")
+
+        source_name = f"{src_year} {src_pub} {src_sem} {src_exam}"
+        if src_school.strip():
+            source_name += f" · {src_school.strip()}"
+        src_meta = {"exam_year": src_year, "publisher": src_pub,
+                    "semester": src_sem, "exam_type": src_exam}
+        st.caption(f"저장될 출처:  **{source_name}**")
 
         upload_method = st.radio(
             "입력 방법", ["📸 이미지 업로드", "📄 PDF 업로드", "📝 텍스트 직접 입력"],
@@ -159,6 +246,7 @@ def page_upload(note: dict | None, api_config: dict | None,
                                 st.session_state["upload_preview"] = {
                                     "problems":    all_problems,
                                     "source_name": source_name.strip(),
+                                    "meta":        src_meta,
                                 }
                                 st.session_state.pop("upload_pdf_imgs", None)
                                 st.rerun()
@@ -185,6 +273,7 @@ def page_upload(note: dict | None, api_config: dict | None,
                                 st.session_state["upload_preview"] = {
                                     "problems":    extracted,
                                     "source_name": source_name.strip(),
+                                    "meta":        src_meta,
                                 }
                                 st.rerun()
                             else:
@@ -202,7 +291,12 @@ def page_upload(note: dict | None, api_config: dict | None,
             # ── 추출 즉시 자동 저장 (최초 1회) — 데이터 유실 방지 ──
             if not preview_data.get("auto_saved") and note_id:
                 try:
-                    save_past_problems(note_id, src, probs)
+                    _m = preview_data.get("meta", {})
+                    save_past_problems(note_id, src, probs,
+                                       exam_year=_m.get("exam_year", ""),
+                                       publisher=_m.get("publisher", ""),
+                                       semester=_m.get("semester", ""),
+                                       exam_type=_m.get("exam_type", ""))
                     preview_data["auto_saved"] = True
                 except Exception:
                     pass
@@ -246,8 +340,9 @@ def page_upload(note: dict | None, api_config: dict | None,
 
     # ── 탭 2: 저장된 기출문제 ─────────────────────────────────────
     with tab_saved:
-        saved = list_past_problems(note_id)
-        if not saved:
+        all_saved = list_past_problems(note_id)
+
+        if not all_saved:
             st.markdown(f"""
 <div style="text-align:center;padding:40px;background:#f0fdfa;border-radius:14px;
      border:2px dashed #99f6e4;margin:20px 0;">
@@ -261,12 +356,72 @@ def page_upload(note: dict | None, api_config: dict | None,
 </div>
 """, unsafe_allow_html=True)
         else:
+            # ── 탐색 필터 (연도 / 학기 / 시험) ───────────────────────
+            _years = sorted({s.get("exam_year", "") for s in all_saved if s.get("exam_year")},
+                            reverse=True)
+            fc1, fc2, fc3 = st.columns(3)
+            f_year = fc1.selectbox("연도", ["전체"] + _years, key="pp_f_year")
+            f_sem  = fc2.selectbox("학기", ["전체", "1학기", "2학기"], key="pp_f_sem")
+            f_exam = fc3.selectbox("시험", ["전체", "중간고사", "기말고사", "모의고사", "기타"],
+                                   key="pp_f_exam")
+
+            saved = [
+                s for s in all_saved
+                if (f_year == "전체" or s.get("exam_year") == f_year)
+                and (f_sem  == "전체" or s.get("semester")  == f_sem)
+                and (f_exam == "전체" or s.get("exam_type") == f_exam)
+            ]
+            st.caption(f"{len(saved)}개 / 전체 {len(all_saved)}개")
+
+            if not saved:
+                st.info("선택한 조건의 기출문제가 없어요. 필터를 바꿔보세요.")
+
             for s in saved:
-                probs = s.get("problems", [])
+                probs   = s.get("problems", [])
+                pp_id   = s["id"]
+                editing = (st.session_state.get("pp_edit_id") == pp_id)
+
                 with st.expander(
                     f"📋 {s['source_name']} ({len(probs)}문제) — {s['created_at'][:10]}"
                 ):
-                    # 문제 목록 요약 (정답 미노출)
+                    # ── 수정 모드: 출처 메타 편집 ────────────────────
+                    if editing:
+                        st.markdown("**출처 수정**")
+                        _py = str(s.get("exam_year", "") or date.today().year)
+                        ec1, ec2, ec3, ec4 = st.columns(4)
+                        e_year = ec1.text_input("연도", value=_py, key=f"ppe_year_{pp_id}")
+                        e_pub  = ec2.text_input("출판사", value=s.get("publisher", ""),
+                                                key=f"ppe_pub_{pp_id}")
+                        e_sem  = ec3.selectbox("학기", ["1학기", "2학기"],
+                                               index=0 if s.get("semester") != "2학기" else 1,
+                                               key=f"ppe_sem_{pp_id}")
+                        _exam_opts = ["중간고사", "기말고사", "모의고사", "기타"]
+                        e_exam = ec4.selectbox("시험", _exam_opts,
+                                               index=_exam_opts.index(s.get("exam_type"))
+                                               if s.get("exam_type") in _exam_opts else 0,
+                                               key=f"ppe_exam_{pp_id}")
+                        e_school = st.text_input("학교명 (선택)",
+                                                 value=_extract_school(s.get("source_name", "")),
+                                                 key=f"ppe_school_{pp_id}")
+                        _new_src = f"{e_year} {e_pub} {e_sem} {e_exam}"
+                        if e_school.strip():
+                            _new_src += f" · {e_school.strip()}"
+                        st.caption(f"새 출처: **{_new_src}**")
+
+                        sv1, sv2 = st.columns(2)
+                        if sv1.button("저장", type="primary", use_container_width=True,
+                                      key=f"ppe_save_{pp_id}"):
+                            update_past_problems(pp_id, source_name=_new_src,
+                                                 exam_year=e_year.strip(), publisher=e_pub.strip(),
+                                                 semester=e_sem, exam_type=e_exam)
+                            st.session_state.pop("pp_edit_id", None)
+                            st.rerun()
+                        if sv2.button("취소", use_container_width=True, key=f"ppe_cancel_{pp_id}"):
+                            st.session_state.pop("pp_edit_id", None)
+                            st.rerun()
+                        continue
+
+                    # ── 문제 목록 요약 (정답 미노출) ─────────────────
                     for i, p in enumerate(probs[:3]):
                         number = p.get("number", i + 1)
                         ptype  = p.get("type", "")
@@ -281,14 +436,11 @@ def page_upload(note: dict | None, api_config: dict | None,
                         st.caption(f"… 외 {len(probs) - 3}문제")
 
                     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-                    btn_c1, btn_c2 = st.columns([3, 1])
+                    btn_c1, btn_c2, btn_c3 = st.columns([3, 1, 1])
 
-                    if btn_c1.button(
-                        "🎯 내신문제 방식으로 풀기",
-                        key=f"quiz_past_{s['id']}",
-                        use_container_width=True,
-                        type="primary",
-                    ):
+                    if btn_c1.button("🎯 내신문제 방식으로 풀기",
+                                     key=f"quiz_past_{pp_id}",
+                                     use_container_width=True, type="primary"):
                         st.session_state["past_quiz_state"] = {
                             "problems":     probs,
                             "source_name":  s["source_name"],
@@ -299,14 +451,14 @@ def page_upload(note: dict | None, api_config: dict | None,
                         }
                         st.rerun()
 
-                    if btn_c2.button("🗑️ 삭제", key=f"del_past_{s['id']}",
+                    if btn_c2.button("✏️ 수정", key=f"edit_past_{pp_id}",
                                      use_container_width=True):
-                        from study_db import DB_PATH
-                        import sqlite3
-                        conn = sqlite3.connect(DB_PATH)
-                        conn.execute("DELETE FROM past_problems WHERE id = ?", (s["id"],))
-                        conn.commit()
-                        conn.close()
+                        st.session_state["pp_edit_id"] = pp_id
+                        st.rerun()
+
+                    if btn_c3.button("🗑️ 삭제", key=f"del_past_{pp_id}",
+                                     use_container_width=True):
+                        delete_past_problems(pp_id)   # Supabase 삭제 (기존 SQLite 버그 수정)
                         st.rerun()
 
 
@@ -377,8 +529,21 @@ def _render_past_quiz(student_id: int | None):
             unsafe_allow_html=True,
         )
 
+        # ── 빈칸 서술 템플릿 (answer_template) ──────────────────────
+        if p.get("answer_template"):
+            st.markdown(
+                f'<div style="background:#F0FDF4;border:1px solid #BBF7D0;'
+                f'border-radius:8px;padding:10px 14px;font-size:0.9rem;'
+                f'color:#1f2937;line-height:2;margin-bottom:10px;">'
+                f'✏️ {p["answer_template"].replace(chr(10),"<br>")}</div>',
+                unsafe_allow_html=True,
+            )
+
         options = p.get("options", [])
+        sub_qs  = p.get("sub_questions", [])
+
         if options:
+            # ── 객관식 / 순서배열 ─────────────────────────────────
             prev     = answers.get(i)
             prev_idx = None
             if prev:
@@ -386,18 +551,46 @@ def _render_past_quiz(student_id: int | None):
                     if opt == prev:
                         prev_idx = oi
                         break
-
             choice = st.radio(
                 f"past_q_{i}", options, index=prev_idx,
-                key=f"past_radio_{i}",
-                label_visibility="collapsed",
+                key=f"past_radio_{i}", label_visibility="collapsed",
             )
             if choice:
                 answers[i] = choice
+
+        elif sub_qs:
+            # ── 소문항 (1)(2) 서술형 ─────────────────────────────
+            sub_ans = answers.get(i) if isinstance(answers.get(i), dict) else {}
+            for sq in sub_qs:
+                lbl = sq.get("label", "")
+                sq_q = sq.get("question", "")
+                ans_line = sq.get("answer_line", "")
+                st.markdown(
+                    f'<div style="font-size:0.87rem;font-weight:700;'
+                    f'color:#0891B2;margin:8px 0 3px;">{lbl} {sq_q}</div>',
+                    unsafe_allow_html=True,
+                )
+                if ans_line:
+                    st.markdown(
+                        f'<div style="font-size:0.82rem;color:#64748B;margin-bottom:4px;">'
+                        f'{ans_line}</div>', unsafe_allow_html=True,
+                    )
+                sq_val = sub_ans.get(lbl, "")
+                new_val = st.text_input(
+                    f"{lbl} 답", value=sq_val,
+                    key=f"past_sub_{i}_{lbl}",
+                    placeholder="영어로 답을 쓰세요…",
+                    label_visibility="collapsed",
+                )
+                sub_ans[lbl] = new_val
+            answers[i] = sub_ans
+
         else:
-            # 서술형 / 단답형
+            # ── 단순 서술형 / 단답형 ─────────────────────────────
             prev_text = answers.get(i, "")
-            ans_text  = st.text_area(
+            if isinstance(prev_text, dict):
+                prev_text = ""
+            ans_text = st.text_area(
                 f"past_text_{i}", value=prev_text,
                 key=f"past_textarea_{i}",
                 placeholder="답을 입력하세요…",

@@ -25,28 +25,67 @@ def _parse_json(raw: str) -> dict | list:
 
 
 def _call_text(prompt: str, api_config: dict) -> str:
-    """텍스트 전용 AI 호출 (Anthropic or Gemini)"""
-    atype = api_config.get("type", "")
-    key   = api_config.get("key", "")
+    """텍스트 전용 AI 호출 — 3단 폴백 체인.
 
-    if atype == "anthropic":
-        import anthropic
-        client = anthropic.Anthropic(api_key=key)
-        resp = client.messages.create(
-            model="claude-opus-4-5", max_tokens=8192,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text
+    호출 순서:
+      1) Gemini 키1 (GEMINI_API_KEY)       — 기본, 저렴·빠름
+      2) Gemini 키2 (GEMINI_API_KEY_2)     — 키1 429/실패 시
+      3) Claude Haiku (ANTHROPIC_API_KEY)  — Gemini 전부 실패 시
+    """
+    from google import genai as _genai
 
-    elif atype == "gemini":
-        from google import genai
-        client = genai.Client(api_key=key)
-        resp = client.models.generate_content(
-            model="gemini-2.5-flash", contents=[prompt]
-        )
-        return resp.text
+    # 키 목록 구성 (새 멀티키 + 구형 단일키 하위 호환)
+    gemini_keys   = api_config.get("gemini_keys") or []
+    anthropic_key = api_config.get("anthropic_key", "").strip()
 
-    raise ValueError(f"알 수 없는 API 타입: {atype}")
+    if not gemini_keys:
+        # 구형 단일키 방식 호환
+        atype = api_config.get("type", "")
+        key   = api_config.get("key", "").strip()
+        gk    = api_config.get("gemini_key", "").strip()
+        if gk:   gemini_keys = [gk]
+        elif atype == "gemini" and key:   gemini_keys = [key]
+        elif atype == "anthropic" and key: anthropic_key = anthropic_key or key
+
+    last_err = None
+
+    # ── Gemini 키 순서대로 시도 ─────────────────────────────────────
+    for idx, gkey in enumerate(gemini_keys, 1):
+        try:
+            client = _genai.Client(api_key=gkey)
+            resp   = client.models.generate_content(
+                model="gemini-2.5-flash", contents=[prompt]
+            )
+            return resp.text
+        except Exception as e:
+            last_err = e
+            remaining_gemini = len(gemini_keys) - idx
+            if remaining_gemini > 0:
+                # 다음 Gemini 키로 재시도
+                continue
+            # Gemini 키 소진 → Claude 폴백
+            if anthropic_key:
+                try:
+                    import streamlit as st
+                    st.toast("⚡ Gemini 한도 → Claude Haiku 전환", icon="🔄")
+                except Exception:
+                    pass
+
+    # ── Claude Haiku 폴백 ────────────────────────────────────────────
+    if anthropic_key:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=anthropic_key)
+            resp   = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=8192,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return resp.content[0].text
+        except Exception as e:
+            last_err = e
+
+    raise ValueError(f"모든 AI 키 실패: {last_err}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1250,17 +1289,25 @@ def generate_secret_note_from_items(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def extract_past_problems_from_text(text: str, api_config: dict) -> list[dict]:
-    """기출문제 텍스트 → 구조화된 문제 목록 (밑줄 HTML 보존)"""
-    prompt = f"""아래는 영어 시험 기출문제입니다. 문제와 답안을 분석해서 구조화해주세요.
+    """기출문제 텍스트 → 구조화된 문제 목록 (서술형·소문항·빈칸 완전 지원)"""
+    prompt = f"""당신은 대한민국 중학교 영어 시험지 전문 분석가입니다.
+아래 시험 기출문제 텍스트를 분석해서 모든 문제를 구조화하세요.
 
-[기출문제]
-{text[:3000]}
+[기출문제 텍스트]
+{text[:8000]}
 
-⚠️ 중요 규칙:
-- 밑줄이 표시된 단어·구절은 반드시 <u>텍스트</u> HTML 태그로 표시
-  예: "She <u>have</u> gone to school." (밑줄 친 have)
-- 지문(passage)이 있는 문제는 반드시 passage 필드에 분리
-- 지문에도 밑줄이 있을 경우 <u>태그</u> 사용
+━━━━ 추출 규칙 ━━━━
+
+【발문】문제 번호 옆 한국어 지시문 전체를 question에 포함 (조건 포함)
+
+【지문(passage)】박스/테두리 안 영어 지문 → passage 필드에 완전히 추출
+  - 밑줄 친 부분 → <u>텍스트</u> 태그
+
+【서술형·빈칸】
+  - 빈칸(_____) 있는 문장 → ___ 로 표시해 answer_template에 추출
+  - 소문항 (1)(2) → sub_questions 배열에 각각 {"label","question","answer_line"}
+
+【선택지】①②③④⑤ → options 배열에 그대로
 
 반드시 아래 JSON 형식만 반환 (다른 텍스트 절대 금지):
 {{
@@ -1269,17 +1316,32 @@ def extract_past_problems_from_text(text: str, api_config: dict) -> list[dict]:
       "number": 1,
       "type": "객관식",
       "passage": "지문 (없으면 빈 문자열). <u>밑줄</u> 포함 가능",
-      "question": "문제 내용. <u>밑줄</u> 부분은 HTML 태그 사용",
+      "question": "한국어 발문 전체 (조건 포함)",
+      "answer_template": "빈칸 있는 문장 (___ 표시). 없으면 빈 문자열",
+      "sub_questions": [],
       "options": ["① 보기1", "② 보기2", "③ 보기3", "④ 보기4"],
       "answer": "② 보기2",
       "points": 3
+    }},
+    {{
+      "number": 2,
+      "type": "서술형",
+      "passage": "Ms. Lee prepares fresh and delicious meals...",
+      "question": "다음 글을 읽고 아래 질문에 대한 알맞은 대답이 되도록 빈칸을 완성하시오.",
+      "answer_template": "",
+      "sub_questions": [
+        {{"label": "(1)", "question": "What does Ms. Lee do after lunchtime?", "answer_line": "→ She ___."}},
+        {{"label": "(2)", "question": "Why is Ms. Lee proud of her job?", "answer_line": "→ Because she ___ to the students."}}
+      ],
+      "options": [],
+      "answer": "",
+      "points": 4
     }}
   ]
 }}
 
-- type: 객관식 / 서술형 / 단답형
-- 답이 없으면 answer를 ""로
-- 순수 JSON만 반환"""
+type 값: 객관식 / 서술형 / 단답형 / 순서배열 / 빈칸완성 / 어법
+답이 없으면 answer: ""  |  순수 JSON만 반환  |  모든 문제 빠짐없이"""
 
     try:
         raw  = _call_text(prompt, api_config)
