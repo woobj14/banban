@@ -2,6 +2,7 @@
 # PDF/이미지 업로드 → AI 추출 → 내신문제 방식 퀴즈 + 오답노트 연동
 
 import streamlit as st
+from datetime import date
 from icons import icon, section_md, title_md
 from study_db import save_past_problems, list_past_problems, add_question_wrong
 from study_ai import extract_past_problems_from_text
@@ -195,10 +196,22 @@ def page_upload(note: dict | None, api_config: dict | None,
         preview_data = st.session_state.get("upload_preview")
         if preview_data:
             probs   = preview_data["problems"]
-            src     = preview_data.get("source_name") or "기출문제"
+            src     = preview_data.get("source_name") or f"기출문제 {date.today()}"
             n       = len(probs)
 
+            # ── 추출 즉시 자동 저장 (최초 1회) — 데이터 유실 방지 ──
+            if not preview_data.get("auto_saved") and note_id:
+                try:
+                    save_past_problems(note_id, src, probs)
+                    preview_data["auto_saved"] = True
+                except Exception:
+                    pass
+            saved = preview_data.get("auto_saved", False)
+
             st.markdown("---")
+            _sub = ("💾 자동 저장됐어요 — 「저장된 기출문제」 탭에서 언제든 다시 풀 수 있어요"
+                    if saved else
+                    "⚠️ 노트를 선택하면 자동 저장돼요. 지금은 바로 풀기만 가능해요")
             st.markdown(f"""
 <div style="background:#f0fdfa;border:2px solid #5eead4;border-radius:14px;
      padding:22px;text-align:center;margin:8px 0 18px 0;">
@@ -206,15 +219,13 @@ def page_upload(note: dict | None, api_config: dict | None,
   <div style="font-size:1.25rem;font-weight:800;color:#0f766e;">
     {n}개 문제 추출 완료!
   </div>
-  <div style="color:#6b7280;font-size:0.85rem;margin-top:4px;">
-    바로 풀거나, 저장 후 나중에 풀 수 있어요
-  </div>
+  <div style="color:#6b7280;font-size:0.85rem;margin-top:4px;">{_sub}</div>
 </div>
 """, unsafe_allow_html=True)
 
-            act_col1, act_col2, act_col3 = st.columns([3, 3, 1])
+            act_col1, act_col2 = st.columns([4, 1])
 
-            # 바로 풀기 → quiz state로 이동 (from_preview=True)
+            # 바로 풀기 → quiz state로 이동 (이미 저장됐으니 안심)
             if act_col1.button("🎯 바로 풀기", type="primary",
                                use_container_width=True, key="preview_quiz"):
                 st.session_state["past_quiz_state"] = {
@@ -223,28 +234,13 @@ def page_upload(note: dict | None, api_config: dict | None,
                     "answers":      {},
                     "submitted":    False,
                     "note_id":      note_id or 0,
-                    "from_preview": True,   # 결과 화면에서 저장 옵션 표시
+                    "from_preview": not saved,   # 저장 안 됐을 때만 결과 화면 저장 옵션
                 }
                 del st.session_state["upload_preview"]
                 st.rerun()
 
-            # 저장 후 나중에 풀기
-            if act_col2.button("💾 저장하기", use_container_width=True,
-                               key="preview_save"):
-                if not src or src == "기출문제":
-                    st.error("먼저 출처를 입력해주세요.")
-                elif not note_id:
-                    st.error("노트를 먼저 선택해주세요.")
-                else:
-                    try:
-                        save_past_problems(note_id, src, probs)
-                        st.success("✅ 저장되었습니다! '저장된 기출문제' 탭에서 확인하세요.")
-                        del st.session_state["upload_preview"]
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"저장 실패: {e}")
-
-            if act_col3.button("취소", use_container_width=True, key="preview_cancel"):
+            # 닫기 (이미 저장됐으므로 데이터 안전)
+            if act_col2.button("닫기", use_container_width=True, key="preview_cancel"):
                 del st.session_state["upload_preview"]
                 st.rerun()
 
@@ -363,12 +359,14 @@ def _render_past_quiz(student_id: int | None):
   </div>
 """, unsafe_allow_html=True)
 
-        # 지문 (밑줄 HTML 지원)
+        # 지문 (밑줄 HTML 지원 + 대화문은 화자별 줄바꿈·색상)
         if p.get("passage"):
+            from study_exam import _format_passage
+            passage_html = _format_passage(p["passage"])
             st.markdown(f"""
 <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:7px;
      padding:10px 14px;font-size:0.83rem;color:#374151;font-style:italic;
-     margin-bottom:10px;line-height:1.8;">{p['passage']}</div>
+     margin-bottom:10px;line-height:1.9;">{passage_html}</div>
 """, unsafe_allow_html=True)
 
         # 문제 본문 (밑줄 HTML 지원)

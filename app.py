@@ -12,7 +12,7 @@ from sample_data import SAMPLE_WORDS, SAMPLE_DIALOGUES, SAMPLE_TEXT
 from icons       import icon, title_md, section_md, confirm_delete_btn, ctype_tag, tag
 from study_db    import get_or_create_student, list_students, init_db as study_init_db
 from chatbot     import render_chatbot
-from plans       import current_plan, has_plan, can_use_ai, upgrade_banner, ai_usage_bar, checkout_url, can_create_note
+from plans       import current_plan, has_plan, can_use_ai, upgrade_banner, ai_usage_bar, checkout_url, can_create_note, can_print, increment_print_usage
 
 study_init_db()  # 학습 DB 초기화 (Supabase 전환 후 no-op)
 
@@ -184,10 +184,11 @@ def _render_auth_page():
                     )
                     sc1, sc2 = st.columns(2)
                     s_email = sc1.text_input(
-                        "이메일 (선택)", placeholder="가입·복구·리포트용",
-                        help="비워둬도 가입 가능. 학부모 리포트·계정 복구에 사용돼요.")
+                        "이메일", placeholder="결제·복구·리포트용",
+                        help="선생님 코드가 있으면 선택. 없으면(개인 회원) 결제 연동·계정 복구를 위해 필수예요.")
                     s_phone = sc2.text_input(
                         "연락처 (선택)", placeholder="010-0000-0000")
+                    st.caption("ℹ️ 선생님 코드가 없는 개인 회원은 결제 연동을 위해 이메일이 필요해요.")
                     s_submitted = st.form_submit_button(
                         "학생 계정 만들기", use_container_width=True, type="primary"
                     )
@@ -199,6 +200,10 @@ def _render_auth_page():
                         st.error("이름을 입력해주세요.")
                     elif not s_pw:
                         st.error("비밀번호를 입력해주세요.")
+                    elif not s_code.strip() and not s_email.strip():
+                        # 선생님 코드 없는 개인 회원 → 결제 연동·복구 위해 이메일 필수
+                        st.error("선생님 코드가 없는 개인 회원은 이메일을 입력해주세요. "
+                                 "결제 연동과 계정 복구에 사용돼요.")
                     else:
                         with st.spinner("가입 처리 중…"):
                             ok, msg = _auth.sign_up_student(
@@ -1985,6 +1990,15 @@ def _render_banban_print(note_id: int):
         unsafe_allow_html=True,
     )
 
+    # FREE 플랜: 이번 달 남은 출력 횟수 안내
+    if not has_plan("pro"):
+        _pok, _pused, _plimit = can_print()
+        st.markdown(
+            f'<div style="font-size:0.74rem;color:#64748B;margin:-2px 0 6px;">'
+            f'이번 달 출력 <b style="color:#4F46E5;">{_pused}/{_plimit}회</b> 사용</div>',
+            unsafe_allow_html=True,
+        )
+
     oc1, oc2, oc3 = st.columns(3)
     print_type  = oc1.selectbox(
         "출력 유형",
@@ -2430,10 +2444,18 @@ def page_library():
                                     st.session_state["lib_edit_id"] = None
                                 st.rerun()
 
-                    # ── 반반노트 출력 버튼 (공통) ────────────────
+                    # ── 반반노트 출력 버튼 (공통) — 무료 플랜 월 출력 한도 게이팅 ──
                     print_label = "닫기" if is_printing else "출력"
                     if ba3.button(print_label, key=f"print_btn_{_grade_label}_{nid}", use_container_width=True):
-                        st.session_state["lib_print_id"] = None if is_printing else nid
+                        if is_printing:
+                            st.session_state["lib_print_id"] = None
+                        else:
+                            _pok, _pu, _pl = can_print()
+                            if _pok:
+                                increment_print_usage()          # 출력 1회 차감
+                                st.session_state["lib_print_id"] = nid
+                            else:
+                                st.session_state["lib_print_id"] = f"denied_{nid}"
                         st.rerun()
 
                     # ── 복제 버튼 — 내 것으로 가져오기 (공통) ────
@@ -2564,6 +2586,11 @@ def page_library():
                 # ── 반반노트 출력 뷰 ─────────────────────────────
                 if st.session_state.get("lib_print_id") == nid:
                     _render_banban_print(nid)
+                elif st.session_state.get("lib_print_id") == f"denied_{nid}":
+                    _pu = can_print()[1]; _pl = can_print()[2]
+                    st.warning(f"무료 플랜은 이번 달 출력 {_pl}회를 모두 사용했어요 "
+                               f"(현재 {_pu}회). PRO로 업그레이드하면 무제한이에요.")
+                    upgrade_banner("pro", compact=True)
 
                 st.markdown('<hr style="margin:6px 0 4px 0;border:none;border-top:1px solid #f1f5f9;">', unsafe_allow_html=True)
 
@@ -3305,6 +3332,46 @@ def _study_note_selector(notes: list[dict],
     if loaded_id not in opt_ids:
         loaded_id = None
 
+    # ── 공통: 불러오기 + 계단식 선택 헬퍼 (게이트/변경 양쪽 재사용) ──
+    def _do_load(_nid):
+        st.session_state["study_note_loaded"] = _nid
+        st.session_state["study_note_id"]     = _nid
+        _rec = [i for i in st.session_state.get("recent_notes", []) if i != _nid]
+        st.session_state["recent_notes"] = [_nid] + _rec[:4]   # 최근 5개 유지
+        for k in ["quiz", "exam_state", "ox_state", "_rv"]:
+            st.session_state.pop(k, None)
+        st.rerun()
+
+    def _cascade(key_prefix):
+        """학년 → 출판사 → 단원 계단식 → 선택된 note_id 반환 (없으면 None)."""
+        _GORDER = ["중1", "중2", "중3", "고1", "고2", "고3"]
+        _grades = sorted({n.get("grade", "") for n in filtered if n.get("grade")},
+                         key=lambda g: _GORDER.index(g) if g in _GORDER else 99)
+        if student_grade and student_grade in _grades:
+            _sg = student_grade                                  # 학생은 내 학년 자동
+            st.caption(f"학년 · {student_grade} (내 학년 자동 선택)")
+        elif _grades:
+            _sg = st.selectbox("① 학년", ["전체"] + _grades, key=f"{key_prefix}_grade")
+        else:
+            _sg = "전체"
+        _p1 = [n for n in filtered if _sg == "전체" or n.get("grade") == _sg]
+
+        _pubs = sorted({n.get("publisher", "") for n in _p1 if n.get("publisher")})
+        _sp = (st.selectbox("② 출판사", ["전체"] + _pubs, key=f"{key_prefix}_pub")
+               if _pubs else "전체")
+        _p2 = [n for n in _p1 if _sp == "전체" or n.get("publisher") == _sp]
+
+        if not _p2:
+            st.info("해당 조건의 교과서가 없어요. 위 단계를 바꿔보세요.")
+            return None
+        _ids = [n["id"] for n in _p2]
+        def _fu(_i):
+            _n  = next((x for x in _p2 if x["id"] == _i), {})
+            _ct = _n.get("content_type", "")
+            return f"{_n.get('title','')}" + (f" · {_ct}" if _ct else "")
+        return st.selectbox("③ 단원 선택", _ids, format_func=_fu,
+                            key=f"{key_prefix}_unit", help="단원명으로 검색할 수 있어요")
+
     if loaded_id is None:
         # 선택 카드 + 불러오기 버튼 (자동 로딩 X)
         st.markdown(
@@ -3323,20 +3390,27 @@ def _study_note_selector(notes: list[dict],
             f'</div>',
             unsafe_allow_html=True,
         )
-        default_pending = st.session_state.get("study_note_id")
-        p_idx = opt_ids.index(default_pending) if default_pending in opt_ids else 0
-        chosen = st.selectbox(
-            "교과서·단원 선택", options=opt_ids, index=p_idx,
-            format_func=_fmt, key="study_note_select_pending",
-            help="단원명을 입력해 검색할 수 있어요",
-        )
-        if st.button("반반노트 불러오기", type="primary", use_container_width=True,
-                     key="study_note_load_btn"):
-            st.session_state["study_note_loaded"] = chosen
-            st.session_state["study_note_id"]     = chosen
-            for k in ["quiz", "exam_state", "ox_state", "_rv"]:
-                st.session_state.pop(k, None)
-            st.rerun()
+        # ── ① 최근 학습한 교과서 (빠른 진입) ──────────────────────
+        recent_ids = [i for i in st.session_state.get("recent_notes", []) if i in opt_ids][:4]
+        if recent_ids:
+            st.markdown('<div style="font-size:0.72rem;font-weight:800;color:#94A3B8;'
+                        'letter-spacing:.04em;margin:2px 0 5px;">최근 학습한 교과서</div>',
+                        unsafe_allow_html=True)
+            rcols = st.columns(len(recent_ids))
+            for _col, _rid in zip(rcols, recent_ids):
+                _rn = next((n for n in filtered if n["id"] == _rid), None)
+                if _rn and _col.button(f"📘 {_rn.get('title','')[:16]}",
+                                       key=f"recent_note_{_rid}",
+                                       use_container_width=True):
+                    _do_load(_rid)
+            st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+
+        # ── ② 계단식 선택: 학년 → 출판사 → 단원 ───────────────────
+        _chosen = _cascade("nav")
+        if _chosen is not None and st.button(
+                "반반노트 불러오기", type="primary", use_container_width=True,
+                key="study_note_load_btn"):
+            _do_load(_chosen)
         return None
 
     # ── 로딩됨: 헤더 + '다른 단원 선택' 토글 ──────────────────────
@@ -3379,25 +3453,15 @@ def _study_note_selector(notes: list[dict],
         unsafe_allow_html=True,
     )
 
-    # ── 다른 단원으로 변경 (명시적 불러오기) ──────────────────────
+    # ── 다른 단원으로 변경 (계단식, 게이트와 동일 UX) ─────────────
     with st.expander("다른 단원 선택 / 변경", expanded=False):
-        cur_idx = opt_ids.index(cur_id) if cur_id in opt_ids else 0
-        chosen = st.selectbox(
-            "교과서·단원 선택",
-            options=opt_ids,
-            index=cur_idx,
-            format_func=_fmt,
-            key="study_note_select_change",
-            help="단원명을 입력해 검색할 수 있어요",
-        )
+        _chg = _cascade("chg")
         if st.button("이 단원으로 불러오기", type="primary",
                      use_container_width=True, key="study_note_reload_btn"):
-            if chosen != cur_id:
-                st.session_state["study_note_loaded"] = chosen
-                st.session_state["study_note_id"]     = chosen
-                for k in ["quiz", "exam_state", "ox_state", "_rv"]:
-                    st.session_state.pop(k, None)
-            st.rerun()
+            if _chg is not None and _chg != cur_id:
+                _do_load(_chg)
+            else:
+                st.rerun()
 
     return cur_id
 
