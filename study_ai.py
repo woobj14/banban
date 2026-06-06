@@ -1803,6 +1803,7 @@ def generate_cheatsheet_data(
     "grammar": [{{"rule":"문법규칙명","example":"예문 (한국어 해석)","note":"핵심 주의사항"}}]
   }},
   "back": {{
+    "dialogue_summaries": [{{"title":"대화문 제목","summary":"이 대화가 무슨 상황·내용인지 1~2줄 요약"}}],
     "sentences": [{{"en":"핵심 문장","kr":"해석"}}],
     "patterns": [{{"pattern":"핵심 표현/패턴","meaning":"의미","ex":"예시"}}],
     "secret_tips": [{{"title":"비법 제목","content":"내용 요약"}}],
@@ -1813,6 +1814,8 @@ def generate_cheatsheet_data(
 규칙:
 - words: 시험에 꼭 나올 것만, 최대 60개. tip은 혼동되거나 중요한 것만
 - grammar: 핵심 문법만, 최대 10개. example은 영어문장 (한국어해석) 형식
+- dialogue_summaries: 각 대화문이 어떤 상황·주제인지 시험 직전 상기용으로 1~2줄 요약
+  (예: "축제 부스 운영을 누가 도울지 정하는 대화"). 대화문 자료가 있을 때만, 각 대화문당 1개
 - sentences: 대화문/본문에서 핵심 문장, 최대 25개
 - patterns: 자주 출제되는 표현 패턴, 최대 10개
 - secret_tips: 비법노트 핵심 요약, 최대 6개

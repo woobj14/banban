@@ -351,6 +351,13 @@ def _render_ai_prescription(
                     pass
 
     if gen_btn:
+        from plans import can_use_ai, increment_ai_usage, upgrade_banner, ai_usage_bar
+        _aiok, _, _ = can_use_ai()
+        ai_usage_bar()
+        if not _aiok:
+            upgrade_banner("student", compact=True)
+            st.stop()
+        increment_ai_usage()
         with st.spinner("💊 AI가 처방전을 작성 중입니다... (10~30초)"):
             try:
                 from study_ai import generate_weakness_prescription

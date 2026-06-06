@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>반반 BanBan v4 — 한 달 운영 13,000명 냉정 분석</title>
+<style>
+  :root{
+    --indigo:#4338ca; --indigo2:#6366f1; --indigo-l:#eef2ff;
+    --violet:#7c3aed; --violet-l:#f5f3ff;
+    --green:#16a34a; --green-l:#f0fdf4;
+    --amber:#d97706; --amber-l:#fffbeb;
+    --red:#dc2626; --red-l:#fef2f2;
+    --sky:#0284c7; --sky-l:#f0f9ff; --teal:#0d9488; --teal-l:#f0fdfa;
+    --g900:#111827; --g700:#374151; --g500:#6b7280; --g400:#9ca3af;
+    --g300:#d1d5db; --g100:#f3f4f6; --g50:#f9fafb; --white:#fff;
+    --radius:12px; --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+    --shadow-md:0 6px 24px rgba(31,38,135,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    background:#f1f5f9;color:var(--g900);font-size:15px;line-height:1.65;padding-bottom:60px}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 18px}
+  .cover{background:linear-gradient(135deg,#4338ca,#6366f1 55%,#0d9488);
+    color:#fff;padding:54px 40px 46px;border-radius:0 0 28px 28px;box-shadow:var(--shadow-md)}
+  .cover .badge{display:inline-block;background:rgba(255,255,255,.18);
+    border:1px solid rgba(255,255,255,.3);border-radius:30px;padding:5px 16px;
+    font-size:.78rem;font-weight:700;letter-spacing:.04em;margin-bottom:18px}
+  .cover h1{font-size:2.05rem;font-weight:900;line-height:1.25;margin-bottom:12px}
+  .cover p{font-size:.95rem;color:rgba(255,255,255,.9);max-width:720px}
+  .cover .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:9px}
+  .cover .meta span{background:rgba(255,255,255,.14);border-radius:8px;padding:6px 13px;font-size:.8rem;font-weight:600}
+  section{margin-top:34px}
+  h2{font-size:1.35rem;font-weight:850;color:var(--indigo);margin-bottom:6px;display:flex;align-items:center;gap:9px}
+  h2 .n{background:var(--indigo);color:#fff;width:28px;height:28px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:.92rem}
+  .sub{color:var(--g500);font-size:.9rem;margin-bottom:16px}
+  .note{background:var(--g50);border:1px dashed var(--g300);border-radius:10px;
+    padding:14px 18px;font-size:.86rem;color:var(--g700);line-height:1.7}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;background:#fff;border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  th{background:var(--indigo-l);color:var(--indigo);font-weight:800;text-align:left;padding:10px 12px;font-size:.78rem}
+  td{padding:10px 12px;border-top:1px solid var(--g100);vertical-align:top}
+  tr:hover td{background:var(--g50)}
+  .tag{display:inline-block;border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:800}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:8px 0 4px}
+  .kpi .k{background:#fff;border:1px solid var(--g100);border-radius:12px;box-shadow:var(--shadow);padding:16px;text-align:center}
+  .kpi .k b{display:block;font-size:1.7rem;font-weight:900;line-height:1.1}
+  .kpi .k span{font-size:.72rem;color:var(--g500);font-weight:700}
+  @media(max-width:680px){.kpi{grid-template-columns:repeat(2,1fr)}.cover h1{font-size:1.55rem}}
+  .dept{background:#fff;border:1px solid var(--g100);border-radius:14px;box-shadow:var(--shadow);
+    padding:18px 20px;margin-bottom:14px;border-left:5px solid var(--indigo2)}
+  .dept.good{border-left-color:var(--green)} .dept.warn{border-left-color:var(--amber)} .dept.bad{border-left-color:var(--red)}
+  .dept h3{font-size:1.04rem;font-weight:850;margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .dept .who{font-size:.74rem;color:var(--g500);font-weight:700}
+  .scorepill{font-size:.8rem;font-weight:900;border-radius:20px;padding:3px 11px;white-space:nowrap}
+  .bar{height:8px;background:var(--g100);border-radius:6px;margin:9px 0 12px;overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:6px}
+  ul.tight{margin:6px 0 0 2px;padding-left:18px} ul.tight li{margin:5px 0;font-size:.87rem}
+  .pro{color:var(--green);font-weight:700} .con{color:var(--red);font-weight:700}
+  .verbatim{border-left:3px solid var(--g300);padding:3px 0 3px 13px;margin:7px 0;color:var(--g700);font-style:italic;font-size:.87rem}
+  .vwho{font-style:normal;font-weight:800;color:var(--indigo);font-size:.76rem}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.grid2{grid-template-columns:1fr}}
+  .risk{background:var(--red-l);border:1px solid #fecaca;border-radius:12px;padding:15px 19px;margin-bottom:11px}
+  .risk h4{color:var(--red);font-size:.96rem;font-weight:850;margin-bottom:4px}
+  .risk p{font-size:.86rem;color:var(--g700)}
+  .win{background:var(--green-l);border:1px solid #bbf7d0;border-radius:12px;padding:13px 17px;margin-bottom:9px}
+  .win h4{color:var(--green);font-size:.92rem;font-weight:850;margin-bottom:3px}
+  .win p{font-size:.85rem;color:var(--g700)}
+  .pri{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--g100);border-radius:12px;box-shadow:var(--shadow);padding:13px 16px;margin-bottom:9px}
+  .pri .rank{flex-shrink:0;width:28px;height:28px;border-radius:8px;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+  .pri h4{font-size:.93rem;font-weight:850;margin-bottom:2px}
+  .pri p{font-size:.83rem;color:#4b5563}
+  footer{text-align:center;color:var(--g400);font-size:.8rem;margin-top:40px}
+  code{background:var(--g100);border-radius:4px;padding:1px 5px;font-size:.85em}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="wrap" style="padding:0">
+    <span class="badge">한 달 운영 시뮬레이션 · 합성 데이터</span>
+    <h1>반반 BanBan v4<br/>13,000명 한 달 사용 냉정 분석</h1>
+    <p>유료 선생님 1,000 · 그 학생 10,000 · 개인 학생 1,000 · 학부모 1,000(결제 결정권자)이
+       한 달간 매일 접속한 시나리오. 칭찬이 아니라 <b>"한 달 쓰면 무엇이 곪는가"</b>를 전 부서가 자기 영역에서 해부한다.</p>
+    <div class="meta">
+      <span>🧑‍🏫 유료 선생님 1,000</span>
+      <span>👩‍🎓 소속 학생 10,000</span>
+      <span>🙋 개인 학생 1,000</span>
+      <span>👨‍👩‍👧 학부모 1,000</span>
+      <span>📅 30일 · 일일 접속</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <div class="note">
+      <b>⚠️ 합성 시뮬레이션.</b> 페르소나·점수·후기는 실제 코드베이스 동작 + 교육공학·행동경제학 휴리스틱 기반 <b>추정</b>이며 실 사용자 데이터가 아니다.
+      <b>코드에서 사실로 확인된 항목</b>은 §3·§5에 [확인됨] 표기. 점수: SUS(평균 68) · NPS(−100~100) · D30(30일 재방문) · WTP(지속결제의향).
+    </div>
+  </section>
+
+  <!-- 종합 -->
+  <section>
+    <h2><span class="n">0</span> 한 달 뒤 — 종합</h2>
+    <p class="sub">기능은 폭발적으로 늘었고 만족도는 올랐다. 그러나 <b>"규모(1만 명)"가 처음으로 시스템을 압박</b>하기 시작했다.</p>
+    <div class="kpi">
+      <div class="k"><b style="color:var(--indigo)">76</b><span>SUS (평균 68 ↑)</span></div>
+      <div class="k"><b style="color:var(--green)">+34</b><span>NPS (전월 +18 → 개선)</span></div>
+      <div class="k"><b style="color:var(--amber)">61%</b><span>D30 리텐션</span></div>
+      <div class="k"><b style="color:var(--red)">4</b><span>규모 리스크 (§5)</span></div>
+    </div>
+    <div class="dept" style="margin-top:14px;border-left-color:var(--indigo)">
+      <b style="color:var(--indigo)">한 줄 결론</b> —
+      <span class="pro">제품력은 경쟁 우위 구간에 진입</span>(서술형·요약노트·기출 정밀화가 "정성 들인 도구"로 인식됨).
+      그러나 <span class="con">단일 Streamlit 인스턴스 + AI 비용 구조가 1만 명을 못 버틴다.</span>
+      지금은 "기능"이 아니라 <b>"규모를 견디는 인프라·비용"</b>이 다음 생존 과제다.
+    </div>
+  </section>
+
+  <!-- 세그먼트 -->
+  <section>
+    <h2><span class="n">1</span> 세그먼트별 한 달 성적</h2>
+    <div class="grid2">
+      <div>
+        <table>
+          <tr><th>세그먼트</th><th>만족/NPS</th></tr>
+          <tr><td><b>유료 선생님</b> (1,000)</td><td>SUS 79 · NPS +41</td></tr>
+          <tr><td><b>소속 학생</b> (10,000)</td><td>SUS 74 · NPS +28</td></tr>
+          <tr><td><b>개인 학생</b> (1,000)</td><td>SUS 70 · NPS +19</td></tr>
+          <tr><td><b>학부모</b> (1,000)</td><td>SUS 72 · NPS +22</td></tr>
+        </table>
+      </div>
+      <div class="note" style="margin:0">
+        <b>핵심 신호</b><br>
+        · 유료 선생님이 가장 만족 — 노트 소유권·기출 관리·요약노트가 업무를 실제로 줄임<br>
+        · 개인 학생이 최저 — 혼자라 콘텐츠·동기 부족, <b>이탈 위험군</b><br>
+        · 학부모는 "요약노트"에서 가치를 느끼나, <b>가격 대비 효과를 끊임없이 의심</b>
+      </div>
+    </div>
+  </section>
+
+  <!-- 부서별 디테일 -->
+  <section>
+    <h2><span class="n">2</span> 전 부서 디테일 점검</h2>
+    <p class="sub">각 팀이 자기 담당 영역을 한 달치 데이터로 해부. 점수는 10점 만점.</p>
+
+    <!-- 백엔드 -->
+    <div class="dept bad">
+      <h3>🖥️ 백엔드 — 규모·성능·비용 <span class="scorepill" style="background:var(--red-l);color:var(--red)">4.8 / 10</span></h3>
+      <div class="who">담당: S.Y.</div>
+      <div class="bar"><i style="width:48%;background:var(--red)"></i></div>
+      <ul class="tight">
+        <li><span class="con">[확인됨] 단일 Streamlit 인스턴스:</span> 매 상호작용마다 전체 rerun. <b>1만 명 동시 접속이면 큐가 밀린다.</b> 수업 시작 시각(예: 오후 4시) 동시 폭주 → 체감 지연·타임아웃.</li>
+        <li><span class="con">[확인됨] AI 비용 폭증:</span> AI 생성 함수 11종(서술형·요약·채점·처방·기출). 1만 명이 매일 쓰면 <b>일일 수만 콜</b>. Gemini 2키 폴백으로 버텨도 한 달 비용이 구독 매출을 잠식할 수 있다.</li>
+        <li><span class="con">Supabase 쿼리:</span> 캐싱(120s)으로 노트는 개선됐으나, 학습로그·오답·요약노트 조회는 매번. 1만 명이면 connection pool 압박.</li>
+        <li><span class="pro">잘됨:</span> 노트/기출/요약 모두 Supabase 영속화 완료 — 데이터 유실 구조적 위험은 제거.</li>
+      </ul>
+      <p class="verbatim"><span class="vwho">T1 강쌤(대형학원)</span> "오후 4시에 우리 반 40명이 동시에 들어가니 버벅여요. 1:1 과외면 괜찮은데 단체는 불안해요."</p>
+    </div>
+
+    <!-- 교육 -->
+    <div class="dept good">
+      <h3>📚 교육 — 콘텐츠 품질 <span class="scorepill" style="background:var(--green-l);color:var(--green)">7.9 / 10</span></h3>
+      <div class="who">담당: J.H.</div>
+      <div class="bar"><i style="width:79%;background:var(--green)"></i></div>
+      <ul class="tight">
+        <li><span class="pro">서술형 DNA:</span> "내 노트에서 나오는 서술형 + 첨삭"이 한 달 누적되며 <b>다른 앱이 못 따라오는 해자</b>로 굳어짐.</li>
+        <li><span class="pro">기출 OCR 정밀화:</span> 발문·서술형 빈칸·소문항 추출이 좋아져 현장 신뢰 상승.</li>
+        <li><span class="con">[확인됨] 요약노트 오답순 정렬 미구현:</span> 설계엔 있었으나 <code>2-1</code> 미반영. "자주 틀린 것 우선"이 안 돼서 상위권이 아쉬워함.</li>
+        <li><span class="con">서술형 채점 신뢰:</span> 한 달 누적되니 <b>거짓 오답(false negative) 사례가 쌓여</b> 일부 학생이 "채점이 가끔 틀려요"로 신뢰 흔들림. 이의제기·재채점 동선 부재.</li>
+      </ul>
+      <p class="verbatim"><span class="vwho">S1 정민(최상위)</span> "요약노트 좋은데, 제가 자주 틀리는 단어가 위로 안 올라와요. 그냥 순서대로예요."</p>
+    </div>
+
+    <!-- UX -->
+    <div class="dept warn">
+      <h3>🎨 UX — 탐색·일관성·인쇄 <span class="scorepill" style="background:var(--amber-l);color:var(--amber)">7.2 / 10</span></h3>
+      <div class="who">담당: K.D.</div>
+      <div class="bar"><i style="width:72%;background:var(--amber)"></i></div>
+      <ul class="tight">
+        <li><span class="pro">계단식 선택 통일:</span> 전 학습 메뉴 + 요약노트까지 학년→출판사→단원 일관 적용 → "찾기 쉬움" 호평.</li>
+        <li><span class="pro">기출 출처 구조화 + 수정:</span> 제각각이던 출처가 통일돼 학생 탐색 클릭수 급감.</li>
+        <li><span class="con">[확인됨] 5mm 인쇄 미검증:</span> 요약노트 여백 5mm가 <b>실제 프린터에서 잘리는지 검증(2-4) 안 됨.</b> 한 달간 일부 학부모가 "가장자리 잘려 나와요" 보고 가능성.</li>
+        <li><span class="con">모바일:</span> 학생 다수가 폰 사용인데 계단식 3드롭다운·요약노트 미리보기가 좁은 화면에서 답답.</li>
+      </ul>
+      <p class="verbatim"><span class="vwho">학부모 P.4</span> "요약노트 뽑았더니 오른쪽 단어가 살짝 잘렸어요. 다시 설정하기 번거로웠어요."</p>
+    </div>
+
+    <!-- 그로스/결제 -->
+    <div class="dept warn">
+      <h3>📈 그로스 — 전환·바이럴·리텐션 <span class="scorepill" style="background:var(--amber-l);color:var(--amber)">6.9 / 10</span></h3>
+      <div class="who">담당: N.W.</div>
+      <div class="bar"><i style="width:69%;background:var(--amber)"></i></div>
+      <ul class="tight">
+        <li><span class="pro">공용 자료실:</span> 선생님이 만든 노트가 풀에 쌓이며 <b>신규 선생님 콜드스타트 콘텐츠 해소</b> + 제작자 표시로 자랑 동기.</li>
+        <li><span class="pro">선생님→학생 plan 상속:</span> 선생님 1명 결제로 학생 10명 커버 → 바이럴 계수 양호.</li>
+        <li><span class="con">개인 학생 전환 저조:</span> 무료 개인 학생이 STUDENT로 전환이 약함. 혼자라 가치 체감 낮음. <b>개인 학생용 후킹 부재.</b></li>
+        <li><span class="con">PRO CTA 약화 부작용:</span> 사이드바 미니멀화 후 일부 무료 선생님이 PRO 혜택을 인지 못 함 — 전환 동선이 너무 옅어짐.</li>
+      </ul>
+      <p class="verbatim"><span class="vwho">S2 개인학생 서연</span> "혼자 쓰니까 굳이 돈 낼 이유를 못 느껴요. 친구도 같이 쓰면 모를까…"</p>
+    </div>
+
+    <!-- 심리 -->
+    <div class="dept good">
+      <h3>🧠 심리 — 동기·불안·지속 <span class="scorepill" style="background:var(--green-l);color:var(--green)">7.5 / 10</span></h3>
+      <div class="who">담당: H.S.</div>
+      <div class="bar"><i style="width:75%;background:var(--green)"></i></div>
+      <ul class="tight">
+        <li><span class="pro">요약노트 빈칸 모드(기본 OFF):</span> 시험 직전 멘붕 방지 + 셀프테스트 선택권 → 불안 관리 우수.</li>
+        <li><span class="pro">서술형 스캐폴딩:</span> 빈칸→문장완성→자유서술로 영작 공포 완화, 한 달간 하위권 도전율 상승.</li>
+        <li><span class="con">개인 학생 외로움:</span> 클래스 랭킹·또래 자극이 없어 <b>개인 학생 동기 급락(D30 최저)</b>. 게이미피케이션 부재.</li>
+      </ul>
+    </div>
+
+    <!-- CS -->
+    <div class="dept warn">
+      <h3>📞 고객지원 — 결제·계정·문의 <span class="scorepill" style="background:var(--amber-l);color:var(--amber)">6.6 / 10</span></h3>
+      <div class="who">담당: R.M.</div>
+      <div class="bar"><i style="width:66%;background:var(--amber)"></i></div>
+      <ul class="tight">
+        <li><span class="pro">결제 매칭 개선:</span> 개인 학생 이메일 필수화로 "결제했는데 PRO 안 됨" 문의 급감.</li>
+        <li><span class="con">기존 학생 이메일 공백:</span> 개편 전 가입한 학생은 이메일 없음 → 비번 분실 시 복구 불가 문의 누적. <b>계정 설정에 이메일 추가 경로 여전히 부재.</b></li>
+        <li><span class="con">[확인됨] webhook 서명 미검증:</span> HMAC이 "헤더 존재만 확인" 수준 → 위조 webhook으로 무단 PRO 승격 가능. 한 달이면 악용 시도 노출 위험.</li>
+      </ul>
+    </div>
+
+    <!-- QA -->
+    <div class="dept warn">
+      <h3>🧪 QA — 안정성·회귀 <span class="scorepill" style="background:var(--amber-l);color:var(--amber)">6.8 / 10</span></h3>
+      <div class="who">담당: A.R.</div>
+      <div class="bar"><i style="width:68%;background:var(--amber)"></i></div>
+      <ul class="tight">
+        <li><span class="pro">마이그레이션 누적(v11~v14) 안정:</span> RLS 비활성 이슈는 매번 잡았고 데이터 계층 견고해짐.</li>
+        <li><span class="con">RLS 전면 비활성:</span> 빠른 개발엔 좋으나 <b>anon 키로 전 테이블 접근 가능</b> — 1만 명 규모에선 데이터 격리·보안 점검 필요.</li>
+        <li><span class="con">AI 폴백 무한정렬:</span> Gemini 2키 모두 죽고 Claude 키 비었으면 사용자에게 raw 에러. 폴백 끝단 UX 미흡.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 좋은점/특별한점 -->
+  <section>
+    <h2><span class="n">3</span> ✅ 한 달이 증명한 강점</h2>
+    <div class="win"><h4>서술형 DNA — 진짜 해자</h4><p>한 달 누적되며 "이 앱이어야만 하는 이유"가 됨. 경쟁사가 콘텐츠 자산 없이는 복제 불가.</p></div>
+    <div class="win"><h4>선생님 워크플로우 단축</h4><p>노트 소유권·기출 출처 관리·요약노트 자동저장이 합쳐져 유료 선생님 NPS +41. 업무를 실제로 줄임.</p></div>
+    <div class="win"><h4>"정성 들인 도구" 인식</h4><p>요약노트 푸터에서 'AI' 문구를 뺀 결정이 학부모 신뢰에 유효 — "선생님이 만든 자료" 느낌.</p></div>
+  </section>
+
+  <!-- 치명 리스크 -->
+  <section>
+    <h2><span class="n">4</span> 🚨 규모가 드러낸 4대 리스크</h2>
+    <div class="risk"><h4>① 단일 인스턴스 — 1만 명 동시성 [확인됨]</h4><p>Streamlit 단일 프로세스 + 전체 rerun 구조. 수업 시작 동시 접속이 병목. → 다중 인스턴스/오토스케일 또는 핵심 경로 경량화 필요.</p></div>
+    <div class="risk"><h4>② AI 비용 구조 [확인됨]</h4><p>AI 함수 11종 × 1만 명 일일 사용 = 비용 폭증. 구독 매출 잠식 위험. → 캐싱 강화·모델 다운시프트(Haiku/Flash 고정)·사용량 상한 재점검.</p></div>
+    <div class="risk"><h4>③ webhook 서명 미검증 [확인됨]</h4><p>위조 요청으로 무단 PRO 승격 가능. 매출 직결 보안 구멍. → Polar HMAC 정밀 검증 즉시.</p></div>
+    <div class="risk"><h4>④ 개인 학생 이탈 (D30 최저)</h4><p>혼자라 동기·콘텐츠·전환 모두 약함. 1,000명이 한 달 뒤 대거 이탈 추정. → 또래 자극·게이미피케이션·개인용 후킹.</p></div>
+  </section>
+
+  <!-- 우선순위 -->
+  <section>
+    <h2><span class="n">5</span> 다음 30일 우선순위</h2>
+    <div class="pri"><div class="rank" style="background:var(--red)">1</div><div><h4>AI 비용·성능 동시 점검 (캐싱+모델 고정+상한)</h4><p>매출 잠식과 동시성 병목을 한 번에. 시중화 전 필수.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--red)">2</div><div><h4>Polar webhook HMAC 정밀 검증</h4><p>위조 PRO 승격 차단. 코드 한 곳, 임팩트 큼.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--amber)">3</div><div><h4>요약노트 5mm 인쇄 실검증 + 오답순 정렬</h4><p>학부모 체감 품질(2-4) + 상위권 가치(2-1) 동시 완성.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--amber)">4</div><div><h4>개인 학생 리텐션 장치</h4><p>또래 랭킹·연속학습·개인용 PRO 후킹으로 D30 방어.</p></div></div>
+    <div class="pri"><div class="rank" style="background:var(--indigo2)">5</div><div><h4>계정 이메일 추가 경로 + 서술형 이의제기</h4><p>기존 학생 복구 + 채점 신뢰 회복.</p></div></div>
+  </section>
+
+  <footer>
+    반반 BanBan v4 시뮬레이션 · 합성 데이터 기반 가설 자료 · 2026-06-06<br/>
+    점검: S.Y.(백엔드) · J.H.(교육) · K.D.(UX) · N.W.(그로스) · H.S.(심리) · R.M.(CS) · A.R.(QA)
+  </footer>
+</div>
+</body>
+</html>

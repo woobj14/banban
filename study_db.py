@@ -135,6 +135,29 @@ def save_word_cache(word_en: str, definition: str, example: str):
     ).execute()
 
 
+# ── TTS 오디오 캐시 (Gemini Kore 음성) ────────────────────────────
+
+def get_tts_cache(text: str, voice: str = "Kore") -> str | None:
+    """캐시된 오디오(base64) 반환, 없으면 None."""
+    try:
+        sb = get_supabase()
+        r = sb.table("tts_cache").select("audio_b64") \
+              .eq("text", text).eq("voice", voice).limit(1).execute()
+        return r.data[0]["audio_b64"] if r.data else None
+    except Exception:
+        return None
+
+
+def save_tts_cache(text: str, voice: str, audio_b64: str):
+    try:
+        get_supabase().table("tts_cache").upsert(
+            {"text": text, "voice": voice, "audio_b64": audio_b64},
+            on_conflict="text,voice",
+        ).execute()
+    except Exception:
+        pass
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 퀴즈 세션
 # ─────────────────────────────────────────────────────────────────────────────
@@ -225,6 +248,36 @@ def list_secret_notes(note_id: int | None = None) -> list[dict]:
         q = q.eq("note_id", note_id)
     result = q.order("created_at", desc=True).execute()
     return result.data or []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 시험 요약노트 (cheatsheets)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def save_cheatsheet(note_id: int, note_title: str, data: dict,
+                    sections: list, owner_id: str | None = None) -> int:
+    sb = get_supabase()
+    result = sb.table("cheatsheets").insert({
+        "note_id":    note_id,
+        "note_title": note_title,
+        "data":       data,        # JSONB
+        "sections":   sections,    # JSONB
+        "owner_id":   owner_id,
+    }).execute()
+    return result.data[0]["id"]
+
+
+def list_cheatsheets(note_id: int | None = None) -> list[dict]:
+    sb = get_supabase()
+    q  = sb.table("cheatsheets").select("*")
+    if note_id:
+        q = q.eq("note_id", note_id)
+    result = q.order("created_at", desc=True).execute()
+    return result.data or []
+
+
+def delete_cheatsheet(cs_id: int):
+    get_supabase().table("cheatsheets").delete().eq("id", cs_id).execute()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

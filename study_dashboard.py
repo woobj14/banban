@@ -930,6 +930,12 @@ def _render_student_detail(name: str, profile: dict, api_config: dict | None):
         if api_config and st.button(btn_label,
                                     key=f"gen_rec_{name}",
                                     use_container_width=True, type="primary"):
+            from plans import can_use_ai, increment_ai_usage, upgrade_banner
+            _aiok, _, _ = can_use_ai()
+            if not _aiok:
+                upgrade_banner("student", compact=True)
+                st.stop()
+            increment_ai_usage()
             with st.spinner(f"반반쌤이 {name} 학생을 분석하는 중…"):
                 from study_ai import generate_learning_recommendations
                 try:

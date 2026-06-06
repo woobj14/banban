@@ -250,6 +250,12 @@ def page_secret_note(note: dict | None, api_config: dict | None):
             elif not content_input.strip():
                 st.error("❌ 정리할 내용을 입력해주세요.")
             else:
+                from plans import can_use_ai, increment_ai_usage, upgrade_banner
+                _aiok, _, _ = can_use_ai()
+                if not _aiok:
+                    upgrade_banner("student", compact=True)
+                    st.stop()
+                increment_ai_usage()
                 _spin_msg = {
                     "만화 대화형": "👩‍🏫 반반쌤과 학생이 대화를 나누는 중… 🙋‍♂️",
                 }.get(sel_style, f"'{sel_style}' 스타일 비법노트를 제작하는 중… 🎨")

@@ -125,29 +125,12 @@ def _call_ai(image_bytes: bytes, prompt: str, api_config: dict) -> str:
 
 
 def _call_ai_text(prompt: str, api_config: dict) -> str:
-    """이미지 없이 텍스트 전용 AI 호출"""
-    atype = api_config.get("type", "")
-    key   = api_config.get("key", "")
-    if not key:
-        raise ValueError("API 키가 설정되지 않았습니다.")
-
-    if atype == "anthropic":
-        import anthropic
-        client = anthropic.Anthropic(api_key=key)
-        resp = client.messages.create(
-            model="claude-opus-4-5", max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text
-    elif atype == "gemini":
-        from google import genai
-        client = genai.Client(api_key=key)
-        resp = client.models.generate_content(
-            model="gemini-2.5-flash", contents=[prompt]
-        )
-        return resp.text
-    else:
-        raise ValueError(f"알 수 없는 API 타입: {atype}")
+    """이미지 없이 텍스트 전용 AI 호출.
+    study_ai._call_text 위임 → 3단 폴백 체인(Gemini 키1·키2 → Claude Haiku) 공유.
+    (이전 Opus 직접 호출 제거 — 비용 최적화)
+    """
+    from study_ai import _call_text
+    return _call_text(prompt, api_config)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -72,7 +72,14 @@ body {{
 }}
 .front {{ background: linear-gradient(135deg, #4F46E5, #6366F1); color: white; }}
 .back  {{ background: white; color: #1f2937; transform: rotateY(180deg);
-          justify-content: flex-start; align-items: stretch; padding: 14px 16px; }}
+          justify-content: flex-start; align-items: stretch; padding: 14px 16px;
+          overflow-y: auto; -webkit-overflow-scrolling: touch; }}
+/* 뒷면 내부 스크롤바 (얇게) */
+.back::-webkit-scrollbar {{ width: 6px; }}
+.back::-webkit-scrollbar-thumb {{ background: #c7d2fe; border-radius: 3px; }}
+.back::-webkit-scrollbar-track {{ background: transparent; }}
+/* 스크롤 끝 표시 — 아래 더 있음을 암시하는 페이드 (스크롤 시 사라짐) */
+.back-word-kr {{ position: sticky; top: 0; background: white; z-index: 2; }}
 .badge {{
   display: inline-block;
   background: rgba(255,255,255,0.22); color: white;
@@ -642,6 +649,28 @@ def page_vocab(note: dict, student_id: int | None, api_config: dict | None):
     st.markdown(section_md("flip-horizontal", "플래시카드"), unsafe_allow_html=True)
     st.caption("카드를 탭하면 뒤집혀요. 좌우로 스와이프하면 다음/이전 단어")
     components.html(_flashcard_html(words, note_title), height=420, scrolling=False)
+
+    # ── 고품질 발음 (Gemini Kore · patient tutor) ──────────────────
+    with st.expander("🎙️ 고품질 발음 듣기 (Kore — 친절한 원어민 튜터)", expanded=False):
+        _wopts = [w[0] for w in words if w and w[0]]
+        _selw = st.selectbox("단어 선택", _wopts, key="tts_word_sel")
+        if st.button("🔊 Kore 발음 듣기", key="tts_play_btn", use_container_width=True):
+            from study_db import get_tts_cache
+            _hit = get_tts_cache(_selw, "Kore")          # 캐시 히트면 비용 0
+            if not _hit:
+                from plans import can_use_ai, increment_ai_usage, upgrade_banner
+                _ok, _, _ = can_use_ai()
+                if not _ok:
+                    upgrade_banner("student", compact=True)
+                    st.stop()
+                increment_ai_usage()
+            try:
+                with st.spinner("Kore가 또박또박 발음하는 중…"):
+                    from tts import gemini_tts_cached
+                    _wav = gemini_tts_cached(_selw, api_config, "Kore")
+                st.audio(_wav, format="audio/wav", autoplay=True)
+            except Exception as e:
+                st.warning(f"고품질 발음 생성 실패: {e}. (카드의 '🔊 발음 듣기'는 계속 사용 가능해요)")
 
     st.divider()
 
