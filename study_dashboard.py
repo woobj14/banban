@@ -210,26 +210,69 @@ def _load_student_summary(student_id: int) -> dict:
 # 학생 개인 대시보드
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_my_stats(student_id: int | None, student_name: str = ""):
-    user = _auth.current_user()
-    if not user and not student_id:
-        st.info("로그인이 필요합니다.")
-        return
+def _next_action(sid, summary: dict) -> dict:
+    """다음 학습 행동 1개 추천 (규칙 기반 · AI 비용 0).
+    우선순위: 복습 due → 약점 → 시작 → 이어서.
+    """
+    try:
+        from study_db import get_due_reviews
+        due = get_due_reviews(sid, limit=50)
+    except Exception:
+        due = []
+    ww = summary.get("word_wrong_count", 0)
+    qw = summary.get("q_wrong_count", 0)
+    week = summary.get("week_sessions", 0)
 
-    # student_id: BIGINT 정수 우선 / auth.current_student_id() 폴백 / UUID는 사용 안 함
-    sid = student_id or _auth.current_student_id()
-    if not sid:
-        st.info("학생 계정으로 로그인하세요.")
-        return
+    if due:
+        return {"icon": "refresh-cw", "color": "#D97706",
+                "title": "복습할 때가 됐어요",
+                "desc": f"까먹기 전에 {len(due)}개를 다시 만나요",
+                "page": "__study__", "study_page": "복습하기"}
+    if ww + qw >= 3:
+        return {"icon": "target", "color": "#DC2626",
+                "title": "약점부터 잡아요",
+                "desc": f"자주 틀린 {ww + qw}개를 처방받아 보세요",
+                "page": "__study__", "study_page": "약점 처방전"}
+    if week == 0:
+        return {"icon": "play", "color": "#4F46E5",
+                "title": "오늘 학습 시작!",
+                "desc": "단어부터 가볍게 5분이면 충분해요",
+                "page": "__study__", "study_page": "단어학습"}
+    return {"icon": "book-open", "color": "#16A34A",
+            "title": "이어서 학습하기",
+            "desc": "오늘도 한 걸음 더 — 반반 학습으로",
+            "page": "__study__", "study_page": "반반 학습"}
 
-    # 로딩
-    with st.spinner("학습 현황 불러오는 중…"):
-        try:
-            summary = _load_student_summary(sid)
-        except Exception as e:
-            st.error(f"데이터 조회 오류: {e}")
-            return
 
+def _render_next_action_widget(sid, summary: dict):
+    """내 학습현황 최상단 — '오늘의 학습' 다음 행동 카드 + 한 버튼."""
+    a = _next_action(sid, summary)
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,{a["color"]}14,{a["color"]}08);'
+        f'border:1.5px solid {a["color"]}33;border-left:5px solid {a["color"]};'
+        f'border-radius:14px;padding:14px 18px;margin-bottom:12px;'
+        f'display:flex;align-items:center;gap:12px;">'
+        f'<span style="display:inline-flex;width:40px;height:40px;border-radius:11px;'
+        f'align-items:center;justify-content:center;background:{a["color"]}1a;flex-shrink:0;">'
+        f'{icon(a["icon"], 20, a["color"])}</span>'
+        f'<div style="min-width:0;">'
+        f'<div style="font-size:0.72rem;font-weight:800;color:{a["color"]};'
+        f'letter-spacing:0.04em;">오늘의 학습</div>'
+        f'<div style="font-size:1.05rem;font-weight:800;color:#1E293B;line-height:1.3;">'
+        f'{a["title"]}</div>'
+        f'<div style="font-size:0.8rem;color:#64748B;">{a["desc"]}</div>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("▶  지금 바로 시작하기", type="primary",
+                 use_container_width=True, key="next_action_btn"):
+        st.session_state["page"]       = a["page"]
+        st.session_state["study_page"] = a["study_page"]
+        st.rerun()
+
+
+def _render_stats_detail(summary: dict):
+    """상세 학습 통계 (KPI·주간·모듈·이력) — 첫 화면에선 접어서 표시."""
     streak        = summary["streak"]
     week_sessions = summary["week_sessions"]
     word_wrong    = summary["word_wrong_count"]
@@ -237,47 +280,6 @@ def _render_my_stats(student_id: int | None, student_name: str = ""):
     overall_avg   = summary["overall_avg"]
     mod_stats     = summary["mod_stats"]
     daily_counts  = summary["daily_counts"]
-
-    # ── 히어로 헤더 ─────────────────────────────────────────
-    if streak >= 14: level_label, level_color, level_icon = "전설",  "#FCD34D", "award"
-    elif streak >= 7: level_label, level_color, level_icon = "강자",  "#C4B5FD", "zap"
-    elif streak >= 3: level_label, level_color, level_icon = "성장",  "#86EFAC", "trending-up"
-    else:             level_label, level_color, level_icon = "새싹",  "#BAE6FD", "book-open"
-
-    hero_icon   = icon("bar-chart-2", 13, "rgba(255,255,255,0.65)")
-    streak_icon = icon(level_icon,    22, level_color)
-    name_txt    = student_name + "의 " if student_name else ""
-
-    st.markdown(
-        f'<div style="background:linear-gradient(135deg,#3730A3 0%,#4F46E5 50%,#6D28D9 100%);'
-        f'color:white;border-radius:20px;padding:24px 26px;margin-bottom:18px;'
-        f'box-shadow:0 4px 20px rgba(79,70,229,0.30),0 1px 4px rgba(0,0,0,0.08);'
-        f'position:relative;overflow:hidden;">'
-        f'<div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;'
-        f'border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none;"></div>'
-        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-        f'<div>'
-        f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.6);font-weight:600;'
-        f'letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;gap:5px;">'
-        f'{hero_icon} 내 학습 현황</div>'
-        f'<div style="font-size:1.5rem;font-weight:900;letter-spacing:-0.5px;line-height:1.1;">'
-        f'{name_txt}학습 대시보드</div>'
-        f'<div style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;'
-        f'background:rgba(255,255,255,0.12);border-radius:20px;padding:4px 12px;">'
-        f'{icon(level_icon, 12, level_color)}'
-        f'<span style="font-size:0.72rem;font-weight:700;color:{level_color};">{level_label}</span>'
-        f'</div>'
-        f'</div>'
-        f'<div style="text-align:center;background:rgba(255,255,255,0.1);'
-        f'border-radius:16px;padding:14px 18px;">'
-        f'{streak_icon}'
-        f'<div style="font-size:1.8rem;font-weight:900;line-height:1;margin-top:4px;">{streak}</div>'
-        f'<div style="font-size:0.65rem;color:rgba(255,255,255,0.65);margin-top:2px;">일 연속</div>'
-        f'</div>'
-        f'</div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
 
     # ── KPI — 글래스 한 판 + 헤어라인 구분 (네모 박스 제거) ────────
     streak_color = "#7C3AED" if streak >= 7 else "#0891B2" if streak >= 3 else "#64748B"
@@ -411,6 +413,83 @@ def _render_my_stats(student_id: int | None, student_name: str = ""):
             f'</div>',
             unsafe_allow_html=True,
         )
+
+
+def _render_my_stats(student_id: int | None, student_name: str = ""):
+    user = _auth.current_user()
+    if not user and not student_id:
+        st.info("로그인이 필요합니다.")
+        return
+
+    # student_id: BIGINT 정수 우선 / auth.current_student_id() 폴백 / UUID는 사용 안 함
+    sid = student_id or _auth.current_student_id()
+    if not sid:
+        st.info("학생 계정으로 로그인하세요.")
+        return
+
+    # 로딩
+    with st.spinner("학습 현황 불러오는 중…"):
+        try:
+            summary = _load_student_summary(sid)
+        except Exception as e:
+            st.error(f"데이터 조회 오류: {e}")
+            return
+
+    streak        = summary["streak"]
+    week_sessions = summary["week_sessions"]
+    word_wrong    = summary["word_wrong_count"]
+    q_wrong       = summary["q_wrong_count"]
+    overall_avg   = summary["overall_avg"]
+    mod_stats     = summary["mod_stats"]
+    daily_counts  = summary["daily_counts"]
+
+    # ── 오늘의 학습 (자기주도 다음 행동 추천 — 규칙 기반, 비용 0) ──
+    _render_next_action_widget(sid, summary)
+
+    # ── 히어로 헤더 ─────────────────────────────────────────
+    if streak >= 14: level_label, level_color, level_icon = "전설",  "#FCD34D", "award"
+    elif streak >= 7: level_label, level_color, level_icon = "강자",  "#C4B5FD", "zap"
+    elif streak >= 3: level_label, level_color, level_icon = "성장",  "#86EFAC", "trending-up"
+    else:             level_label, level_color, level_icon = "새싹",  "#BAE6FD", "book-open"
+
+    hero_icon   = icon("bar-chart-2", 13, "rgba(255,255,255,0.65)")
+    streak_icon = icon(level_icon,    22, level_color)
+    name_txt    = student_name + "의 " if student_name else ""
+
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#3730A3 0%,#4F46E5 50%,#6D28D9 100%);'
+        f'color:white;border-radius:20px;padding:24px 26px;margin-bottom:18px;'
+        f'box-shadow:0 4px 20px rgba(79,70,229,0.30),0 1px 4px rgba(0,0,0,0.08);'
+        f'position:relative;overflow:hidden;">'
+        f'<div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;'
+        f'border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none;"></div>'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+        f'<div>'
+        f'<div style="font-size:0.72rem;color:rgba(255,255,255,0.6);font-weight:600;'
+        f'letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;gap:5px;">'
+        f'{hero_icon} 내 학습 현황</div>'
+        f'<div style="font-size:1.5rem;font-weight:900;letter-spacing:-0.5px;line-height:1.1;">'
+        f'{name_txt}학습 대시보드</div>'
+        f'<div style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;'
+        f'background:rgba(255,255,255,0.12);border-radius:20px;padding:4px 12px;">'
+        f'{icon(level_icon, 12, level_color)}'
+        f'<span style="font-size:0.72rem;font-weight:700;color:{level_color};">{level_label}</span>'
+        f'</div>'
+        f'</div>'
+        f'<div style="text-align:center;background:rgba(255,255,255,0.1);'
+        f'border-radius:16px;padding:14px 18px;">'
+        f'{streak_icon}'
+        f'<div style="font-size:1.8rem;font-weight:900;line-height:1;margin-top:4px;">{streak}</div>'
+        f'<div style="font-size:0.65rem;color:rgba(255,255,255,0.65);margin-top:2px;">일 연속</div>'
+        f'</div>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── 상세 통계 (제시안이 먼저 — 숫자는 접어서 나중에) ──────────
+    with st.expander("📊 내 학습 통계 자세히 보기", expanded=False):
+        _render_stats_detail(summary)
 
 
 def _kpi(col, icon_name: str, value: str, label: str, color: str,

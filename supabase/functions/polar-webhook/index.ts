@@ -10,6 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
 // Polar 상품 ID → 우리 플랜 매핑
 // (Polar 대시보드의 각 상품 ID로 교체하세요)
@@ -30,20 +31,33 @@ Deno.serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  // ── 1. Webhook 서명 검증 (선택이지만 권장) ──────────────────
+  // ── 1. Webhook 서명 검증 (Standard Webhooks HMAC — Polar 규격) ──
   const secret = Deno.env.get("POLAR_WEBHOOK_SECRET") ?? "";
-  const sig    = req.headers.get("webhook-signature") ?? "";
   const raw    = await req.text();
-  // 간단 검증: secret이 설정돼 있으면 헤더 존재만 확인 (정밀 HMAC은 Polar SDK 권장)
-  if (secret && !sig) {
-    return new Response("Missing signature", { status: 401 });
-  }
 
   let event: any;
-  try {
-    event = JSON.parse(raw);
-  } catch {
-    return new Response("Invalid JSON", { status: 400 });
+  if (secret) {
+    const whHeaders = {
+      "webhook-id":        req.headers.get("webhook-id")        ?? "",
+      "webhook-timestamp": req.headers.get("webhook-timestamp") ?? "",
+      "webhook-signature": req.headers.get("webhook-signature") ?? "",
+    };
+    try {
+      // Polar secret(polar_whs_…) → base64 키 부분으로 정규화
+      const base64Secret = secret.replace(/^polar_whs_/, "").replace(/^whsec_/, "");
+      const wh = new Webhook(base64Secret);
+      // HMAC-SHA256 서명 + timestamp 신선도 검증. 실패 시 throw → 위조/재전송 차단
+      event = wh.verify(raw, whHeaders);
+    } catch (_e) {
+      return new Response("Invalid signature", { status: 403 });
+    }
+  } else {
+    // secret 미설정(개발 모드) — 검증 스킵
+    try {
+      event = JSON.parse(raw);
+    } catch {
+      return new Response("Invalid JSON", { status: 400 });
+    }
   }
 
   const type = event?.type ?? "";
