@@ -10,6 +10,41 @@ from supabase_client import get_supabase
 # 이메일 인증 후 돌아올 URL — .env의 SITE_URL 우선, 없으면 로컬 기본값
 _SITE_URL = os.environ.get("SITE_URL", "http://localhost:8502")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 세션 영속화 — refresh_token을 브라우저 쿠키에 저장 (탭/세션 끊겨도 자동 재로그인)
+# ─────────────────────────────────────────────────────────────────────────────
+_RT_COOKIE = "bb_rt"
+
+def _cookie_mgr():
+    # CookieManager는 위젯이라 cache_resource에 넣으면 안 됨 → 세션에 1회 생성
+    if "_bb_cm" not in st.session_state:
+        import extra_streamlit_components as stx
+        st.session_state["_bb_cm"] = stx.CookieManager(key="bb_cookie_mgr")
+    return st.session_state["_bb_cm"]
+
+def _get_refresh_cookie():
+    try:
+        return _cookie_mgr().get(_RT_COOKIE)
+    except Exception:
+        return None
+
+def _save_refresh_cookie(token: str):
+    if not token:
+        return
+    try:
+        from datetime import datetime, timedelta
+        _cookie_mgr().set(_RT_COOKIE, token,
+                          expires_at=datetime.now() + timedelta(days=30),
+                          key="bb_set_rt")
+    except Exception:
+        pass
+
+def _clear_refresh_cookie():
+    try:
+        _cookie_mgr().delete(_RT_COOKIE, key="bb_del_rt")
+    except Exception:
+        pass
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 비밀번호 정책 검사
@@ -56,20 +91,41 @@ def password_strength_label(pw: str) -> tuple[str, str]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def restore_session() -> bool:
-    """페이지 리로드 시 Supabase 세션 복원. 로그인 상태면 True."""
+    """페이지 리로드/세션 끊김 시 Supabase 세션 복원. 로그인 상태면 True.
+    1) 같은 탭 메모리(sb_session) → 2) 메모리 없으면 쿠키(refresh_token)로 재로그인.
+    """
+    # ── 1) 같은 탭 세션 메모리 ────────────────────────────────
     saved = st.session_state.get("sb_session")
-    if not saved:
-        return False
-    try:
-        sb = get_supabase()
-        sb.auth.set_session(saved["access_token"], saved["refresh_token"])
-        resp = sb.auth.get_user()
-        if resp and resp.user:
-            st.session_state["sb_user"] = resp.user
-            return True
-    except Exception:
-        pass
-    # 세션 만료
+    if saved:
+        try:
+            sb = get_supabase()
+            sb.auth.set_session(saved["access_token"], saved["refresh_token"])
+            resp = sb.auth.get_user()
+            if resp and resp.user:
+                st.session_state["sb_user"] = resp.user
+                return True
+        except Exception:
+            pass
+
+    # ── 2) 메모리 소실 → 쿠키의 refresh_token으로 자동 재로그인 ──
+    rt = _get_refresh_cookie()
+    if rt:
+        try:
+            sb = get_supabase()
+            resp = sb.auth.refresh_session(rt)
+            if resp and resp.session and resp.user:
+                st.session_state["sb_session"] = {
+                    "access_token":  resp.session.access_token,
+                    "refresh_token": resp.session.refresh_token,
+                }
+                st.session_state["sb_user"] = resp.user
+                _load_profile(resp.user.id)
+                _save_refresh_cookie(resp.session.refresh_token)  # 갱신된 토큰 재저장
+                return True
+        except Exception:
+            _clear_refresh_cookie()   # 만료/무효 → 쿠키 정리
+
+    # ── 둘 다 실패 → 세션 정리 ────────────────────────────────
     for key in ("sb_session", "sb_user", "sb_student_id",
                 "sb_student_name", "sb_role"):
         st.session_state.pop(key, None)
@@ -133,6 +189,7 @@ def sign_in(email_or_username: str, password: str) -> tuple[bool, str]:
             "refresh_token": session.refresh_token,
         }
         st.session_state["sb_user"] = user
+        _save_refresh_cookie(session.refresh_token)   # 세션 영속화 (자동 재로그인)
 
         # 프로필 로드
         _load_profile(user.id)
@@ -456,7 +513,8 @@ def sign_out():
         get_supabase().auth.sign_out()
     except Exception:
         pass
-    clear_auto_login()   # localStorage 토큰 삭제
+    clear_auto_login()       # localStorage 토큰 삭제
+    _clear_refresh_cookie()  # 쿠키 토큰 삭제 (자동 재로그인 차단)
     # 인증 관련 키 제거
     for key in ("sb_session", "sb_user", "sb_student_id",
                 "sb_student_name", "sb_role", "study_student"):
@@ -720,8 +778,9 @@ def try_restore_from_params() -> bool:
                     "access_token":  session.access_token,
                     "refresh_token": session.refresh_token,
                 }
-                # 토큰 갱신 (localStorage도 새 토큰으로 업데이트)
+                # 토큰 갱신 (localStorage + 쿠키 둘 다 새 토큰으로)
                 save_auto_login(session.access_token, session.refresh_token)
+                _save_refresh_cookie(session.refresh_token)
             st.session_state["sb_user"] = user
             _load_profile(user.id)
             # URL에서 토큰 파람 제거 (보안)

@@ -593,8 +593,22 @@ def _render_drill(api_config: dict | None):
             d["last_ok"]    = None
             d["reaction"]   = ""
             d["ai_feedback"] = ""
+            d["attempts"]   = 0       # 생각 유도: 새 문제 시도 횟수 초기화
+            d["retry"]      = False
             st.rerun()
         return
+
+    # ── 생각 유도: 첫 오답 후 재시도 안내 (정답 아직 비공개) ──────
+    if d.get("retry"):
+        st.markdown(
+            '<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;'
+            'padding:10px 14px;margin-bottom:10px;font-size:0.86rem;color:#9A3412;">'
+            '🤔 <b>조금 달라요.</b> 위 힌트를 다시 보고 한 번 더 생각해볼까요? '
+            '<span style="color:#C2410C;">(이번이 마지막 기회예요)</span></div>',
+            unsafe_allow_html=True,
+        )
+        if d.get("ai_feedback"):
+            st.caption(f"💡 {d['ai_feedback']}")
 
     # ── 미답변: 보기 or 주관식 입력 ─────────────────────────
     options = q.get("options", [])
@@ -651,49 +665,67 @@ def _handle_drill_answer(user_ans: str, correct: str,
                 ]
             ai_feedback = ""
 
-    # 콤보 업데이트
+    # ── 정답 → 확정 ──────────────────────────────────────────
     if is_ok:
         new_combo      = d.get("combo", 0) + 1
         d["combo"]     = new_combo
         d["max_combo"] = max(d.get("max_combo", 0), new_combo)
         d["score"]    += 1
         queue_sound("correct")
-    else:
-        new_combo  = 0
-        d["combo"] = 0
-        d["wrong"].append(d["drills"][d["idx"]])
-        queue_sound("wrong")
-        # ── 오답 시 자동 오답노트 저장 ──────────────────────────
-        sid = d.get("student_id")
-        if sid:
-            try:
-                add_question_wrong(
-                    student_id=sid,
-                    note_id=d.get("note_id", 0),
-                    bank_question_id=None,
-                    source_type="grammar",
-                    question_snapshot=q,
-                    user_answer=user_ans,
-                )
-            except Exception:
-                pass  # 저장 실패 시 조용히 무시 (드릴 흐름 유지)
-            # 망각 곡선 복습 스케줄 자동 등록
-            try:
-                from study_review import auto_schedule_grammar
-                auto_schedule_grammar(
-                    student_id=sid,
-                    note_id=d.get("note_id", 0),
-                    gp_id=d.get("gp_id", 0),
-                    gp_name=d.get("gp_name", ""),
-                )
-            except Exception:
-                pass
+        d["answered"]      = True
+        d["last_ok"]       = True
+        d["retry"]         = False
+        d["last_user_ans"] = user_ans
+        d["ai_feedback"]   = ai_feedback
+        d["reaction"]      = get_bansam_reaction(True, new_combo)
+        st.rerun()
+        return
 
-    d["answered"]    = True
-    d["last_ok"]     = is_ok
+    # ── 오답 처리 ────────────────────────────────────────────
+    d["combo"] = 0
+    queue_sound("wrong")
+
+    # 첫 오답 → 정답을 바로 주지 않고 '다시 생각' 1회 기회 (생각 유도 채점)
+    if d.get("attempts", 0) == 0:
+        d["attempts"]      = 1
+        d["retry"]         = True
+        d["last_user_ans"] = user_ans
+        d["ai_feedback"]   = ai_feedback   # AI 힌트성 피드백 있으면 노출
+        st.rerun()
+        return
+
+    # 둘째 오답 → 확정 오답 (정답 공개 + 오답노트 + 복습 스케줄)
+    d["wrong"].append(d["drills"][d["idx"]])
+    sid = d.get("student_id")
+    if sid:
+        try:
+            add_question_wrong(
+                student_id=sid,
+                note_id=d.get("note_id", 0),
+                bank_question_id=None,
+                source_type="grammar",
+                question_snapshot=q,
+                user_answer=user_ans,
+            )
+        except Exception:
+            pass  # 저장 실패 시 조용히 무시 (드릴 흐름 유지)
+        try:
+            from study_review import auto_schedule_grammar
+            auto_schedule_grammar(
+                student_id=sid,
+                note_id=d.get("note_id", 0),
+                gp_id=d.get("gp_id", 0),
+                gp_name=d.get("gp_name", ""),
+            )
+        except Exception:
+            pass
+
+    d["answered"]      = True
+    d["last_ok"]       = False
+    d["retry"]         = False
     d["last_user_ans"] = user_ans
-    d["ai_feedback"] = ai_feedback
-    d["reaction"]    = get_bansam_reaction(is_ok, new_combo)
+    d["ai_feedback"]   = ai_feedback
+    d["reaction"]      = get_bansam_reaction(False, 0)
     st.rerun()
 
 
