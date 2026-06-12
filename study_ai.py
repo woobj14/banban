@@ -2197,3 +2197,75 @@ def grade_essay_answer(
             "matched": matched, "missing": missing,
             "feedback": "", "improve": f"모범답안: {model_answer}", "grammar": "",
         }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI 자체 콘텐츠 생성 — 교육과정 기반 (선생님 노동 0, 저작권 0, 우리만의 자산)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def generate_curriculum_content(
+    grade: str,
+    topic: str,
+    api_config: dict,
+    content_type: str = "본문",      # "본문" | "대화문"
+    n_words: int = 15,
+    n_units: int = 10,               # 본문 문장 수 또는 대화문 줄 수
+    difficulty: str = "medium",
+) -> dict:
+    """교육과정·주제 기반으로 영어 학습 콘텐츠를 새로 창작.
+
+    저작권 있는 기존 교과서를 베끼지 않고 새 콘텐츠 생성 → 우리만의 자산.
+    Returns: {"title_en","title_kr","sentences":[(en,kr)],"dialogues":[...],"words":[(en,kr)]}
+    """
+    _diff = {"easy": "쉬운(기초)", "medium": "보통(교과서 평균)", "hard": "심화"}.get(difficulty, "보통")
+
+    if content_type == "대화문":
+        body_spec = (
+            f"- 자연스러운 영어 대화문 {n_units}줄 (화자 표시 A:/B: 사용, 일상·학교 상황)\n"
+        )
+        body_json = '"dialogues": [{"title":"대화문1","lines":[{"en":"A: ...","kr":"A: ..."}]}],'
+    else:
+        body_spec = f"- 영어 지문 {n_units}문장 (하나의 이야기/설명, 문장마다 01 02 번호)\n"
+        body_json = '"sentences": [{"en":"01 ...","kr":"01 ..."}],'
+
+    prompt = f"""당신은 대한민국 중학교 영어 교육과정 전문 콘텐츠 작가입니다.
+아래 조건으로 영어 학습 콘텐츠를 **새로 창작**하세요.
+⚠️ 저작권 있는 실제 교과서/기출을 베끼지 말고, 완전히 새로운 내용을 창작할 것.
+
+[조건]
+- 대상: 중학교 {grade}
+- 주제: {topic}
+- 난이도: {_diff} (해당 학년 어휘·문법 수준 엄수)
+{body_spec}- 핵심 단어 {n_words}개 (지문/대화에서 중요한 어휘)
+- 모든 문장·단어에 자연스러운 한국어 번역
+- 교육적이고 학생이 흥미를 느낄 내용
+
+반드시 아래 JSON만 반환 (다른 텍스트 금지):
+{{
+  "title_en": "영어 제목",
+  "title_kr": "한국어 제목",
+  {body_json}
+  "words": [{{"en":"단어","kr":"뜻"}}]
+}}"""
+
+    raw  = _call_text(prompt, api_config)
+    data = _parse_json(raw)
+
+    result = {
+        "title_en": data.get("title_en", ""),
+        "title_kr": data.get("title_kr", ""),
+        "words": [(w["en"].strip(), w.get("kr", "").strip())
+                  for w in data.get("words", []) if w.get("en")],
+        "sentences": [],
+        "dialogues": [],
+    }
+    if content_type == "대화문":
+        for d in data.get("dialogues", []):
+            lines = [(l["en"].strip(), l.get("kr", "").strip())
+                     for l in d.get("lines", []) if l.get("en")]
+            if lines:
+                result["dialogues"].append({"title": d.get("title", "대화문"), "lines": lines})
+    else:
+        result["sentences"] = [(s["en"].strip(), s.get("kr", "").strip())
+                               for s in data.get("sentences", []) if s.get("en")]
+    return result

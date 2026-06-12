@@ -12,7 +12,7 @@ from sample_data import SAMPLE_WORDS, SAMPLE_DIALOGUES, SAMPLE_TEXT
 from icons       import icon, title_md, section_md, confirm_delete_btn, ctype_tag, tag
 from study_db    import get_or_create_student, list_students, init_db as study_init_db
 from chatbot     import render_chatbot
-from plans       import current_plan, has_plan, can_use_ai, upgrade_banner, ai_usage_bar, checkout_url, can_create_note, can_print, increment_print_usage
+from plans       import current_plan, has_plan, can_use_ai, upgrade_banner, ai_usage_bar, checkout_url, can_create_note, can_print, increment_print_usage, increment_ai_usage
 
 study_init_db()  # 학습 DB 초기화 (Supabase 전환 후 no-op)
 
@@ -2715,6 +2715,94 @@ def page_add_note():
     # ct 정규화 (여기서 한 번만 계산)
     ct_map = {"단어":"단어","대화문":"대화문","본문":"본문","전체(단어+대화+본문)":"전체"}
     ct = ct_map.get(ctype, ctype)
+
+    # ── 🤖 AI 자동 생성 (교육과정 → 콘텐츠 창작, 저작권 0) ────────
+    if _has_api():
+        st.markdown(section_md("sparkles", "AI 자동 생성 (교육과정 기반)"), unsafe_allow_html=True)
+        with st.expander("🤖 주제만 주면 AI가 지문·단어를 새로 창작해요 (선생님 입력 없이)", expanded=False):
+            st.caption("실제 교과서를 베끼지 않고 교육과정 수준에 맞춰 새 콘텐츠를 만들어요.")
+            gc1, gc2 = st.columns([2, 1])
+            gen_topic = gc1.text_input("주제", placeholder="예: 환경보호, 학교 축제, 우정, 인공지능…",
+                                       key="gc_topic")
+            gen_type  = gc2.selectbox("유형", ["본문", "대화문"], key="gc_type")
+            gc3, gc4, gc5 = st.columns(3)
+            gen_units = gc3.slider("문장/줄 수", 5, 20, 10, key="gc_units")
+            gen_words = gc4.slider("단어 수", 5, 30, 15, key="gc_words")
+            gen_diff  = gc5.selectbox("난이도", ["easy", "medium", "hard"],
+                                      format_func=lambda x: {"easy":"쉬움","medium":"보통","hard":"심화"}[x],
+                                      index=1, key="gc_diff")
+
+            _ai_ok, _, _ = can_use_ai()
+            ai_usage_bar()
+            if not _ai_ok:
+                upgrade_banner("student", compact=True)
+            elif st.button("🤖 AI로 콘텐츠 생성", type="primary",
+                           use_container_width=True, key="gc_gen_btn"):
+                if not gen_topic.strip():
+                    st.warning("주제를 입력해주세요.")
+                else:
+                    increment_ai_usage()
+                    with st.spinner(f"'{gen_topic}' 주제로 콘텐츠를 창작하는 중… (20~40초)"):
+                        try:
+                            from study_ai import generate_curriculum_content
+                            _content = generate_curriculum_content(
+                                grade, gen_topic.strip(), _api_config(),
+                                content_type=gen_type, n_words=gen_words,
+                                n_units=gen_units, difficulty=gen_diff,
+                            )
+                            st.session_state["gc_result"]      = _content
+                            st.session_state["gc_result_type"] = gen_type
+                            st.session_state["gc_result_topic"] = gen_topic.strip()
+                        except Exception as e:
+                            st.error(f"생성 실패: {e}")
+
+            # ── 생성 결과 미리보기 + 노트로 저장 ──────────────
+            _gc = st.session_state.get("gc_result")
+            if _gc:
+                st.success(f"✅ '{_gc.get('title_en','')}' / {_gc.get('title_kr','')} 생성 완료!")
+                _gtype = st.session_state.get("gc_result_type", "본문")
+                if _gtype == "대화문":
+                    for d in _gc.get("dialogues", []):
+                        for en, kr in d.get("lines", [])[:4]:
+                            st.markdown(f"<div style='font-size:0.84rem;'>{en}<br>"
+                                        f"<span style='color:#94a3b8;'>{kr}</span></div>",
+                                        unsafe_allow_html=True)
+                else:
+                    for en, kr in _gc.get("sentences", [])[:3]:
+                        st.markdown(f"<div style='font-size:0.84rem;'>{en}<br>"
+                                    f"<span style='color:#94a3b8;'>{kr}</span></div>",
+                                    unsafe_allow_html=True)
+                st.caption(f"문장/줄 {len(_gc.get('sentences') or _gc.get('dialogues') or [])}개 · "
+                           f"단어 {len(_gc.get('words', []))}개")
+
+                if st.button("📚 이 콘텐츠를 노트로 저장", type="primary",
+                             use_container_width=True, key="gc_save_btn"):
+                    _u   = _auth.current_user()
+                    _uid = _u.id if _u else None
+                    _cnt = count_my_notes(_uid) if _uid else 0
+                    _ok, _used, _limit = can_create_note(_cnt)
+                    if not _ok:
+                        st.error(f"무료 플랜은 노트 {_limit}개까지예요 (현재 {_used}). PRO로 무제한.")
+                        upgrade_banner("pro", compact=True)
+                    else:
+                        _td = ({"title_en": _gc.get("title_en",""),
+                                "title_kr": _gc.get("title_kr",""),
+                                "sentences": _gc.get("sentences", [])}
+                               if _gtype == "본문" else {})
+                        _nid = save_note(
+                            title        = f"{_gc.get('title_kr') or st.session_state.get('gc_result_topic','')} (AI생성)",
+                            grade        = grade, publisher = "AI생성",
+                            author       = "", chapter = "",
+                            content_type = _gtype,
+                            words        = _gc.get("words", []),
+                            dialogues    = _gc.get("dialogues", []),
+                            text_data    = _td,
+                            tags         = f"AI생성,{st.session_state.get('gc_result_topic','')}",
+                            owner_id     = _uid, visibility = "private",
+                        )
+                        st.success(f"📚 노트로 저장됐어요! (ID #{_nid}) — 라이브러리·학습에서 바로 쓸 수 있어요.")
+                        st.session_state.pop("gc_result", None)
+                        st.balloons()
 
     # ── ✍️ 텍스트 직접 입력 → AI 정리 ────────────────────────
     if _has_api():

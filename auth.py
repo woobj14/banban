@@ -5,7 +5,7 @@ import os
 import re
 import uuid
 import streamlit as st
-from supabase_client import get_supabase
+from supabase_client import get_supabase, get_auth_client
 
 # 이메일 인증 후 돌아올 URL — .env의 SITE_URL 우선, 없으면 로컬 기본값
 _SITE_URL = os.environ.get("SITE_URL", "http://localhost:8502")
@@ -98,11 +98,14 @@ def restore_session() -> bool:
     saved = st.session_state.get("sb_session")
     if saved:
         try:
-            sb = get_supabase()
-            sb.auth.set_session(saved["access_token"], saved["refresh_token"])
-            resp = sb.auth.get_user()
+            get_auth_client().auth.set_session(saved["access_token"], saved["refresh_token"])
+            resp = get_auth_client().auth.get_user()
             if resp and resp.user:
                 st.session_state["sb_user"] = resp.user
+                # role/plan 최신화 — 옛 세션에 강등값(student/free)이 박혀도 갱신
+                if not st.session_state.get("_profile_loaded"):
+                    _load_profile(resp.user.id)
+                    st.session_state["_profile_loaded"] = True
                 return True
         except Exception:
             pass
@@ -112,7 +115,7 @@ def restore_session() -> bool:
     if rt:
         try:
             sb = get_supabase()
-            resp = sb.auth.refresh_session(rt)
+            resp = get_auth_client().auth.refresh_session(rt)
             if resp and resp.session and resp.user:
                 st.session_state["sb_session"] = {
                     "access_token":  resp.session.access_token,
@@ -177,7 +180,7 @@ def sign_in(email_or_username: str, password: str) -> tuple[bool, str]:
 
     try:
         sb = get_supabase()
-        result = sb.auth.sign_in_with_password({"email": email, "password": password})
+        result = get_auth_client().auth.sign_in_with_password({"email": email, "password": password})
         session = result.session
         user    = result.user
         if not session:
@@ -219,7 +222,7 @@ def sign_up(email: str, password: str,
 
     try:
         sb = get_supabase()
-        result = sb.auth.sign_up({
+        result = get_auth_client().auth.sign_up({
             "email":    email,
             "password": password,
             "options":  {
@@ -354,7 +357,7 @@ def sign_up_student(
             teacher_id = code_row.data["teacher_id"]
 
         # Supabase Auth 계정 생성
-        result = sb.auth.sign_up({
+        result = get_auth_client().auth.sign_up({
             "email":    virtual_email,
             "password": password,
             "options":  {
@@ -431,7 +434,7 @@ def sign_up_teacher(
         return False, "비밀번호 조건 미충족: " + " / ".join(errors)
     try:
         sb = get_supabase()
-        result = sb.auth.sign_up({
+        result = get_auth_client().auth.sign_up({
             "email":    email.strip(),
             "password": password,
             "options":  {
@@ -510,14 +513,14 @@ def log_learning_event(
 def sign_out():
     """로그아웃 — Supabase 세션 종료 + Streamlit 세션 초기화 + 자동로그인 토큰 삭제"""
     try:
-        get_supabase().auth.sign_out()
+        get_auth_client().auth.sign_out()
     except Exception:
         pass
     clear_auto_login()       # localStorage 토큰 삭제
     _clear_refresh_cookie()  # 쿠키 토큰 삭제 (자동 재로그인 차단)
     # 인증 관련 키 제거
     for key in ("sb_session", "sb_user", "sb_student_id",
-                "sb_student_name", "sb_role", "study_student"):
+                "sb_student_name", "sb_role", "study_student", "_profile_loaded"):
         st.session_state.pop(key, None)
     # 학습 진행 중인 세션도 초기화
     for key in ("exam_state", "past_quiz_state", "upload_preview",
@@ -534,7 +537,7 @@ def update_password(new_password: str) -> tuple[bool, str]:
     if errors:
         return False, "비밀번호 조건 미충족: " + " / ".join(errors)
     try:
-        get_supabase().auth.update_user({"password": new_password})
+        get_auth_client().auth.update_user({"password": new_password})
         return True, "비밀번호가 변경되었습니다."
     except Exception as e:
         return False, f"변경 실패: {e}"
@@ -601,7 +604,7 @@ def delete_account() -> tuple[bool, str]:
 
 def send_password_reset(email: str) -> tuple[bool, str]:
     try:
-        get_supabase().auth.reset_password_email(email)
+        get_auth_client().auth.reset_password_email(email)
         return True, f"{email}으로 비밀번호 재설정 이메일을 보냈습니다."
     except Exception as e:
         return False, f"발송 실패: {e}"
@@ -768,11 +771,11 @@ def try_restore_from_params() -> bool:
             return False
 
         sb = get_supabase()
-        sb.auth.set_session(at, rt)
-        resp = sb.auth.get_user()
+        get_auth_client().auth.set_session(at, rt)
+        resp = get_auth_client().auth.get_user()
         if resp and resp.user:
             user    = resp.user
-            session = sb.auth.get_session()
+            session = get_auth_client().auth.get_session()
             if session:
                 st.session_state["sb_session"] = {
                     "access_token":  session.access_token,

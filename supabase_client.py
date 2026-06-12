@@ -29,6 +29,22 @@ def get_supabase() -> Client:
     return create_client(url, key)
 
 
+@lru_cache(maxsize=1)
+def get_auth_client() -> Client:
+    """인증 전용 클라이언트 (anon 키).
+
+    ⚠️ DB 조회는 절대 이걸로 하지 말 것 — sign_in/set_session이 이 클라이언트에
+    사용자 JWT를 걸기 때문에, 이후 .table() 호출이 user 컨텍스트가 되어 RLS에 막힘.
+    auth 작업(sign_in/up/out, set_session, get_user, refresh)만 이걸 사용.
+    DB 작업은 get_supabase()(service_role, JWT 없음 → RLS 우회)로.
+    """
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_ANON_KEY", "")
+    if not url or not key:
+        raise ValueError("SUPABASE_URL 및 SUPABASE_ANON_KEY를 .env에 설정하세요.")
+    return create_client(url, key)
+
+
 def is_supabase_configured() -> bool:
     """Supabase 환경변수가 설정되어 있는지 확인"""
     return bool(
