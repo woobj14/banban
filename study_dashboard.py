@@ -557,6 +557,26 @@ def _render_teacher_dashboard(api_config: dict | None):
 
     teacher_name = _auth.current_student_name() or "선생님"
 
+    # ── (관리자 전용) AI 비용 측정 — 유닛 이코노믹스 ─────────
+    if _auth.current_role() == "admin":
+        from study_db import get_ai_cost_summary
+        with st.expander("💰 AI 비용 측정 (최근 30일 · 관리자 전용)", expanded=False):
+            s = get_ai_cost_summary(30)
+            mc1, mc2, mc3 = st.columns(3)
+            mc1.metric("총 AI 비용", f"${s['total_usd']:.2f}")
+            mc2.metric("사용자당 평균", f"${s['per_user_usd']:.3f}")
+            mc3.metric("AI 호출 수", f"{s['calls']:,}")
+            _krw = s["per_user_usd"] * 1350   # USD→KRW 대략
+            _verdict = "✅ 흑자 구조" if _krw < 4900 else "⚠️ 구독료 초과"
+            st.markdown(
+                f"<div style='font-size:0.84rem;color:#475569;'>"
+                f"사용자당 월 <b>~₩{_krw:,.0f}</b> vs STUDENT 구독 4,900원 → "
+                f"<b>{_verdict}</b><br>"
+                f"모델별 비용: {s['by_model'] or '(데이터 없음)'}</div>",
+                unsafe_allow_html=True,
+            )
+            st.caption("※ 추정 단가 기준(실제 청구와 차이 가능). 캐시 히트는 비용 0.")
+
     # ── 학생 수 미리 조회 (히어로 섹션용) ───────────────────
     try:
         total_students = _sb().table("profiles") \

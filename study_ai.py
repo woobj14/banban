@@ -24,6 +24,23 @@ def _parse_json(raw: str) -> dict | list:
     return json.loads(raw)
 
 
+# ── AI 비용 추정 (per 1M tokens, USD — 추정값, 실제 단가는 변동) ──────
+_PRICING = {
+    "gemini-2.5-flash": (0.075, 0.30),
+    "claude-haiku-4-5": (1.00, 5.00),
+}
+
+def _log_ai(model: str, in_tok, out_tok, feature: str = ""):
+    """토큰 → 추정비용 로깅 (study_db.ai_usage_log). 실패해도 무시."""
+    try:
+        ip, op = _PRICING.get(model, (0.0, 0.0))
+        cost = (int(in_tok or 0) / 1e6) * ip + (int(out_tok or 0) / 1e6) * op
+        from study_db import log_ai_usage
+        log_ai_usage(model, in_tok, out_tok, cost, feature)
+    except Exception:
+        pass
+
+
 def _call_text(prompt: str, api_config: dict) -> str:
     """텍스트 전용 AI 호출 — 3단 폴백 체인.
 
@@ -56,6 +73,11 @@ def _call_text(prompt: str, api_config: dict) -> str:
             resp   = client.models.generate_content(
                 model="gemini-2.5-flash", contents=[prompt]
             )
+            try:
+                _um = resp.usage_metadata
+                _log_ai("gemini-2.5-flash", _um.prompt_token_count, _um.candidates_token_count)
+            except Exception:
+                pass
             return resp.text
         except Exception as e:
             last_err = e
@@ -81,6 +103,10 @@ def _call_text(prompt: str, api_config: dict) -> str:
                 max_tokens=8192,
                 messages=[{"role": "user", "content": prompt}],
             )
+            try:
+                _log_ai("claude-haiku-4-5", resp.usage.input_tokens, resp.usage.output_tokens)
+            except Exception:
+                pass
             return resp.content[0].text
         except Exception as e:
             last_err = e

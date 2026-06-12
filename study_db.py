@@ -137,6 +137,55 @@ def save_word_cache(word_en: str, definition: str, example: str):
 
 # ── TTS 오디오 캐시 (Gemini Kore 음성) ────────────────────────────
 
+def log_ai_usage(model: str, in_tokens: int, out_tokens: int,
+                 cost_usd: float, feature: str = ""):
+    """AI 호출 1건 로깅 (유닛 이코노믹스 측정). 실패해도 앱 흐름 방해 안 함."""
+    try:
+        import auth as _a
+        u   = _a.current_user()
+        uid = u.id if u else None
+    except Exception:
+        uid = None
+    try:
+        get_supabase().table("ai_usage_log").insert({
+            "user_id":    uid,
+            "model":      model,
+            "feature":    feature,
+            "in_tokens":  int(in_tokens or 0),
+            "out_tokens": int(out_tokens or 0),
+            "cost_usd":   round(float(cost_usd or 0), 6),
+        }).execute()
+    except Exception:
+        pass
+
+
+def get_ai_cost_summary(days: int = 30) -> dict:
+    """최근 N일 AI 비용 요약 — 총비용·호출수·학생당 평균."""
+    from datetime import datetime, timedelta, timezone
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    try:
+        r = get_supabase().table("ai_usage_log") \
+            .select("user_id,cost_usd,in_tokens,out_tokens,model") \
+            .gte("created_at", since).execute()
+        rows = r.data or []
+    except Exception:
+        return {"calls": 0, "total_usd": 0.0, "per_user_usd": 0.0,
+                "users": 0, "by_model": {}}
+    total = sum(float(x.get("cost_usd") or 0) for x in rows)
+    users = {x.get("user_id") for x in rows if x.get("user_id")}
+    by_model: dict[str, float] = {}
+    for x in rows:
+        by_model[x.get("model", "?")] = by_model.get(x.get("model", "?"), 0) + float(x.get("cost_usd") or 0)
+    n_users = max(len(users), 1)
+    return {
+        "calls":        len(rows),
+        "total_usd":    round(total, 4),
+        "per_user_usd": round(total / n_users, 4),
+        "users":        len(users),
+        "by_model":     {k: round(v, 4) for k, v in by_model.items()},
+    }
+
+
 def get_tts_cache(text: str, voice: str = "Kore") -> str | None:
     """캐시된 오디오(base64) 반환, 없으면 None."""
     try:

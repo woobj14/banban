@@ -58,6 +58,11 @@ def _call_anthropic(image_bytes: bytes, prompt: str, api_key: str) -> str:
             ],
         }],
     )
+    try:
+        from study_ai import _log_ai
+        _log_ai("claude-haiku-4-5", resp.usage.input_tokens, resp.usage.output_tokens, "ocr")
+    except Exception:
+        pass
     return resp.content[0].text
 
 
@@ -77,6 +82,12 @@ def _call_gemini(image_bytes: bytes, prompt: str, api_key: str,
         model=model,
         contents=[prompt, img],
     )
+    try:
+        from study_ai import _log_ai
+        _um = resp.usage_metadata
+        _log_ai(model, _um.prompt_token_count, _um.candidates_token_count, "ocr")
+    except Exception:
+        pass
     return resp.text
 
 
