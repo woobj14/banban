@@ -2775,6 +2775,11 @@ def page_add_note():
                 st.caption(f"문장/줄 {len(_gc.get('sentences') or _gc.get('dialogues') or [])}개 · "
                            f"단어 {len(_gc.get('words', []))}개")
 
+                st.checkbox(
+                    "✏️ 생각 유도형 문제(서술형 DNA)도 함께 만들기",
+                    value=True, key="gc_with_essay",
+                    help="저장과 동시에 '외우지 말고 생각하게' 만드는 서술형 문제를 자동 생성해 "
+                         "학습센터 ▸ 서술형 DNA에 넣어둡니다. (AI 호출 +1회)")
                 if st.button("📚 이 콘텐츠를 노트로 저장", type="primary",
                              use_container_width=True, key="gc_save_btn"):
                     _u   = _auth.current_user()
@@ -2801,6 +2806,34 @@ def page_add_note():
                             owner_id     = _uid, visibility = "private",
                         )
                         st.success(f"📚 노트로 저장됐어요! (ID #{_nid}) — 라이브러리·학습에서 바로 쓸 수 있어요.")
+                        # ── 생각 유도형(서술형 DNA) 자동 동봉 ──────────────
+                        if st.session_state.get("gc_with_essay") and _nid:
+                            _eai_ok, _, _ = can_use_ai()
+                            if not _eai_ok:
+                                st.caption("생각 유도형 문제는 AI 사용량 한도로 건너뛰었어요. "
+                                           "학습센터 ▸ 서술형 DNA에서 직접 만들 수 있어요.")
+                            else:
+                                increment_ai_usage()
+                                with st.spinner("생각 유도형(서술형 DNA) 문제를 함께 만드는 중… (15~30초)"):
+                                    try:
+                                        from study_ai    import generate_essay_questions
+                                        from study_essay import _to_bank
+                                        from study_db    import save_to_question_bank
+                                        _scope = "대화문" if _gtype == "대화문" else "본문"
+                                        _diff  = st.session_state.get("gc_diff", "medium")
+                                        _eqs   = generate_essay_questions(
+                                            _td, _gc.get("words", []), _gc.get("dialogues", []),
+                                            _api_config(), n_questions=3, scope=_scope, difficulty=_diff)
+                                        _sv = save_to_question_bank(
+                                            _nid, [_to_bank(q, _diff) for q in _eqs],
+                                            source_type="essay") if _eqs else 0
+                                        if _sv:
+                                            st.info(f"✏️ 생각 유도형 문제 {_sv}개도 함께 저장됐어요 — "
+                                                    f"학습센터 ▸ 서술형 DNA에서 바로 풀 수 있어요.")
+                                        else:
+                                            st.caption("생각 유도형 문제 자동 생성은 이번엔 건너뛰었어요.")
+                                    except Exception as _ee:
+                                        st.caption(f"생각 유도형 문제 자동 생성 건너뜀: {_ee}")
                         st.session_state.pop("gc_result", None)
                         st.balloons()
 
