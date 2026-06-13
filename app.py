@@ -2776,10 +2776,11 @@ def page_add_note():
                            f"단어 {len(_gc.get('words', []))}개")
 
                 st.checkbox(
-                    "✏️ 생각 유도형 문제(서술형 DNA)도 함께 만들기",
+                    "✏️ 생각 유도형 문제까지 한 번에 (서술형 DNA)",
                     value=True, key="gc_with_essay",
-                    help="저장과 동시에 '외우지 말고 생각하게' 만드는 서술형 문제를 자동 생성해 "
-                         "학습센터 ▸ 서술형 DNA에 넣어둡니다. (AI 호출 +1회)")
+                    help="외우기용 자료에서 끝나지 않고, 학생이 스스로 생각하게 만드는 서술형 문제까지 "
+                         "함께 만들어 둡니다. 학습센터 ▸ 서술형 DNA에서 바로 풀 수 있어요. "
+                         "(AI 사용량 1회가 추가로 들어갑니다)")
                 if st.button("📚 이 콘텐츠를 노트로 저장", type="primary",
                              use_container_width=True, key="gc_save_btn"):
                     _u   = _auth.current_user()
@@ -2810,8 +2811,9 @@ def page_add_note():
                         if st.session_state.get("gc_with_essay") and _nid:
                             _eai_ok, _, _ = can_use_ai()
                             if not _eai_ok:
-                                st.caption("생각 유도형 문제는 AI 사용량 한도로 건너뛰었어요. "
+                                st.caption("생각 유도형 문제는 오늘 AI 사용량 한도에 닿아 함께 만들지 못했어요. "
                                            "학습센터 ▸ 서술형 DNA에서 직접 만들 수 있어요.")
+                                upgrade_banner("student", compact=True)
                             else:
                                 increment_ai_usage()
                                 with st.spinner("생각 유도형(서술형 DNA) 문제를 함께 만드는 중… (15~30초)"):
