@@ -247,6 +247,46 @@ body {{
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 단원 묶기 헬퍼 (시험은 보통 두 단원 출제 → 1~2단원 병합 지원)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _load_cheat_bundle(note_id) -> dict | None:
+    """단원 1개의 요약노트 재료(단어·대화·본문·문법·비법·기출) 일괄 로드."""
+    from library import get_note
+    from study_db import get_grammar_points, list_secret_notes, list_past_problems
+    note = get_note(note_id)
+    if not note:
+        return None
+    return {
+        "id":          note_id,
+        "note":        note,
+        "words":       note.get("words", []),
+        "dialogues":   note.get("dialogues", []),
+        "text_data":   note.get("text_data", {}),
+        "grammar_pts": get_grammar_points(note_id),
+        "secret_nts":  list_secret_notes(note_id),
+        "past_probs":  list_past_problems(note_id),
+    }
+
+
+def _merge_cheat_data(parts: list[dict]) -> dict:
+    """여러 단원의 요약 데이터(front/back)를 한 장으로 병합.
+    단원 순서를 유지하며 각 섹션 리스트를 이어 붙인다 (단어 영영풀이는 단원당 15개씩 보존)."""
+    front_keys = ["words", "grammar"]
+    back_keys  = ["dialogue_summaries", "sentences", "patterns", "secret_tips", "exam_keys"]
+    out = {"front": {k: [] for k in front_keys},
+           "back":  {k: [] for k in back_keys}}
+    for d in parts:
+        f = d.get("front", {}) or {}
+        b = d.get("back",  {}) or {}
+        for k in front_keys:
+            out["front"][k].extend(f.get(k) or d.get(k) or [])
+        for k in back_keys:
+            out["back"][k].extend(b.get(k) or d.get(k) or [])
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 메인 페이지
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -299,43 +339,58 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
     def _fu_cs(i):
         _n = next((x for x in _p2 if x["id"] == i), {})
         return f"{_n.get('title','')} [{_n.get('content_type','')}]"
-    selected_id = cc3.selectbox("단원", _ids, format_func=_fu_cs, key="cs_note_id")
+    selected_id = cc3.selectbox("단원 1", _ids, format_func=_fu_cs, key="cs_note_id")
 
     if not selected_id:
         return
 
-    # ── 노트 데이터 로드 ───────────────────────
-    from library import get_note
-    from study_db import get_grammar_points, list_secret_notes, list_past_problems
+    # ── 두 번째 단원(선택) — 시험은 보통 두 단원을 묶어 출제 ──────
+    _ids2 = [i for i in _ids if i != selected_id]
+    second_id = None
+    if _ids2:
+        _sel2 = cc3.selectbox(
+            "단원 2 (선택 · 두 단원 묶기)",
+            ["(없음)"] + _ids2,
+            format_func=lambda i: "(없음)" if i == "(없음)" else _fu_cs(i),
+            key="cs_note_id2",
+        )
+        second_id = None if _sel2 == "(없음)" else _sel2
 
-    note = get_note(selected_id)
-    if not note:
+    selected_ids = [selected_id] + ([second_id] if second_id else [])
+
+    # ── 노트 데이터 로드 (1~2단원) ───────────────────────
+    bundles = []
+    for _nid in selected_ids:
+        _b = _load_cheat_bundle(_nid)
+        if _b:
+            bundles.append(_b)
+    if not bundles:
         st.error("노트를 불러올 수 없습니다.")
         return
 
-    words      = note.get("words",     [])
-    dialogues  = note.get("dialogues", [])
-    text_data  = note.get("text_data", {})
-    ct         = note.get("content_type", "")
+    combined_title = " + ".join(b["note"].get("title", "") for b in bundles)
 
-    grammar_pts  = get_grammar_points(selected_id)
-    secret_nts   = list_secret_notes(selected_id)
-    past_probs   = list_past_problems(selected_id)
-
-    # ── 포함할 섹션 선택 ──────────────────────
+    # ── 포함할 섹션 선택 (두 단원의 합집합) ──────────────────────
     st.markdown("#### ⚙️ 포함할 섹션 선택")
 
-    avail_sections = []
-    if words:      avail_sections.append("단어")
-    if dialogues:  avail_sections.append("대화문")
-    if text_data and text_data.get("sentences"): avail_sections.append("본문")
-    if grammar_pts: avail_sections.append("문법")
-    if secret_nts:  avail_sections.append("비법노트")
-    if past_probs:  avail_sections.append("기출문제")
+    _sec_order = ["단어", "대화문", "본문", "문법", "비법노트", "기출문제"]
+    _avail = set()
+    for b in bundles:
+        if b["words"]:                                          _avail.add("단어")
+        if b["dialogues"]:                                      _avail.add("대화문")
+        if b["text_data"] and b["text_data"].get("sentences"):  _avail.add("본문")
+        if b["grammar_pts"]:                                    _avail.add("문법")
+        if b["secret_nts"]:                                     _avail.add("비법노트")
+        if b["past_probs"]:                                     _avail.add("기출문제")
+    avail_sections = [s for s in _sec_order if s in _avail]
 
     if not avail_sections:
-        st.warning("이 노트에는 포함할 수 있는 데이터가 없습니다. 먼저 노트 내용을 추가해주세요.")
+        st.warning("선택한 단원에 포함할 수 있는 데이터가 없습니다. 먼저 노트 내용을 추가해주세요.")
         return
+
+    if len(bundles) == 2:
+        st.success(f"📎 두 단원 묶기: **{combined_title}** — 단어 영영풀이는 단원당 15개씩, "
+                   f"한 장(넘치면 자동 다음 장)으로 정리돼요.")
 
     col_checks = st.columns(len(avail_sections))
     chosen_sections = []
@@ -352,20 +407,25 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
         st.warning("최소 1개 이상의 섹션을 선택해주세요.")
         return
 
-    # ── 데이터 미리보기 ────────────────────────
+    # ── 데이터 미리보기 (두 단원 합계) ────────────────────────
     with st.expander("📊 포함 데이터 현황", expanded=False):
+        _tw   = sum(len(b["words"]) for b in bundles)
+        _tg   = sum(len(b["grammar_pts"]) for b in bundles)
+        _tdl  = sum(len(d.get("lines", [])) for b in bundles for d in b["dialogues"])
+        _ts   = sum(len(b["secret_nts"]) for b in bundles)
+        _tsent= sum(len(b["text_data"].get("sentences", [])) if b["text_data"] else 0
+                    for b in bundles)
+        _tp   = sum(len(b["past_probs"]) for b in bundles)
         cols = st.columns(3)
         with cols[0]:
-            st.metric("단어", f"{len(words)}개")
-            st.metric("문법 포인트", f"{len(grammar_pts)}개")
+            st.metric("단어", f"{_tw}개")
+            st.metric("문법 포인트", f"{_tg}개")
         with cols[1]:
-            dlg_lines = sum(len(d.get("lines",[])) for d in dialogues)
-            st.metric("대화문 줄", f"{dlg_lines}줄")
-            st.metric("비법노트", f"{len(secret_nts)}개")
+            st.metric("대화문 줄", f"{_tdl}줄")
+            st.metric("비법노트", f"{_ts}개")
         with cols[2]:
-            sents = len(text_data.get("sentences",[])) if text_data else 0
-            st.metric("본문 문장", f"{sents}개")
-            st.metric("기출 세트", f"{len(past_probs)}개")
+            st.metric("본문 문장", f"{_tsent}개")
+            st.metric("기출 세트", f"{_tp}개")
 
     st.divider()
 
@@ -381,7 +441,8 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
                   "✏️ 한글 가림": "kr"}.get(_bm_label, "none")
 
     # ── 캐시 키 (AI 생성 데이터만 캐시 — 모드는 즉시 재렌더) ──
-    data_key = f"_cs_data_{selected_id}_{'_'.join(sorted(chosen_sections))}"
+    data_key = (f"_cs_data_{'_'.join(str(i) for i in selected_ids)}"
+                f"_{'_'.join(sorted(chosen_sections))}")
 
     # ── 생성 버튼 ──────────────────────────────
     col_btn1, col_btn2 = st.columns([2, 1])
@@ -406,28 +467,35 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
             if not _aiok:
                 upgrade_banner("student", compact=True)
                 st.stop()
-            increment_ai_usage()
-            with st.spinner("핵심 내용을 분석하고 요약노트를 만들고 있습니다... (30~60초)"):
+            _spin = ("두 단원을 분석해 한 장으로 묶는 중입니다... (단원당 30~60초)"
+                     if len(bundles) == 2
+                     else "핵심 내용을 분석하고 요약노트를 만들고 있습니다... (30~60초)")
+            with st.spinner(_spin):
                 try:
                     from study_ai import generate_cheatsheet_data
-                    data = generate_cheatsheet_data(
-                        note_title    = note.get("title", ""),
-                        words         = words,
-                        dialogues     = dialogues,
-                        text_data     = text_data or {},
-                        grammar_points= grammar_pts,
-                        secret_notes  = secret_nts,
-                        past_problems = past_probs,
-                        sections      = chosen_sections,
-                        api_config    = api_cfg,
-                    )
+                    # 단원별로 생성(단어 영영풀이 15개씩 보존) → 한 장으로 병합
+                    _parts = []
+                    for b in bundles:
+                        increment_ai_usage()
+                        _parts.append(generate_cheatsheet_data(
+                            note_title    = b["note"].get("title", ""),
+                            words         = b["words"],
+                            dialogues     = b["dialogues"],
+                            text_data     = b["text_data"] or {},
+                            grammar_points= b["grammar_pts"],
+                            secret_notes  = b["secret_nts"],
+                            past_problems = b["past_probs"],
+                            sections      = chosen_sections,
+                            api_config    = api_cfg,
+                        ))
+                    data = _merge_cheat_data(_parts)
                     st.session_state[data_key] = data
                     # ── 자동 저장 (생성 직후 1회) ──────────────
                     try:
                         from study_db import save_cheatsheet
                         import auth as _a
                         _u = _a.current_user()
-                        save_cheatsheet(selected_id, note.get("title", ""), data,
+                        save_cheatsheet(selected_id, combined_title, data,
                                         chosen_sections,
                                         owner_id=_u.id if _u else None)
                         st.session_state[f"{data_key}_saved"] = True
@@ -450,7 +518,7 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
         # 모드 반영해 매번 렌더 (AI 재호출 없음)
         date_str = datetime.date.today().strftime("%Y년 %m월 %d일")
         html = _render_cheatsheet_html(
-            note_title = note.get("title", ""),
+            note_title = combined_title,
             data       = data,
             date_str   = date_str,
             blank_mode = blank_mode,
@@ -462,7 +530,7 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
 
         dl_col1, dl_col2 = st.columns(2)
         with dl_col1:
-            note_title_safe = note.get("title","요약노트").replace(" ","_")
+            note_title_safe = (combined_title or "요약노트").replace(" ","_").replace("+","와")
             st.download_button(
                 label="⬇️ HTML 다운로드 (→ 브라우저 인쇄로 PDF 변환)",
                 data=html.encode("utf-8"),
