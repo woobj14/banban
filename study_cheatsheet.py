@@ -12,14 +12,10 @@ from icons import icon, section_md
 # HTML 렌더러
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_cheatsheet_html(note_title: str, data: dict, date_str: str,
-                            blank_mode: str = "none",
-                            sections: list | None = None) -> str:
-    """JSON 데이터 → 인쇄용 A4 HTML (단일 흐름).
-
-    - 선택 섹션만 한 흐름으로 배치 → 한 단원 한 바닥, 넘치면 자동 다음 장
-    - 여백 5mm, 흑백 인쇄 대응(섹션 헤더 테두리화)
-    - blank_mode: 'none'(모두 보기) | 'en'(영어 가림) | 'kr'(한글 가림)
+def _build_sections_body(data: dict, blank_mode: str = "none",
+                         sections: list | None = None) -> str:
+    """한 단원의 요약 데이터(front/back) → 섹션 HTML(body) 문자열.
+    단원 묶기 시 단원별로 이 함수를 호출해 각각의 본문을 만든다.
     """
     front = data.get("front", {})
     back  = data.get("back",  {})
@@ -134,6 +130,31 @@ def _render_cheatsheet_html(note_title: str, data: dict, date_str: str,
 
     if not body:
         body = '<p style="color:#999;font-size:7pt;">선택된 섹션의 내용이 없습니다.</p>'
+    return body
+
+
+def _render_cheatsheet_html(note_title: str, data: dict, date_str: str,
+                            blank_mode: str = "none",
+                            sections: list | None = None) -> str:
+    """JSON 데이터 → 인쇄용 A4 HTML.
+
+    - 단일 단원: data = {"front":..,"back":..} → 한 흐름으로 배치
+    - 두 단원 묶기: data = {"units":[{"title":..,"front":..,"back":..}, ...]}
+      → 단원별 헤더(📘 단원1 · 제목)로 구분해 각각의 흐름으로 렌더
+    - blank_mode: 'none'(모두 보기) | 'en'(영어 가림) | 'kr'(한글 가림)
+    """
+    units = data.get("units") if isinstance(data, dict) else None
+    if units:
+        _badges = ["📘", "📗", "📙", "📕"]
+        inner = ""
+        for i, u in enumerate(units):
+            _ut   = u.get("title", "") or f"단원 {i+1}"
+            _body = _build_sections_body(u, blank_mode, sections)
+            inner += (f'<div class="unit-block">'
+                      f'<div class="unit-head">{_badges[i % len(_badges)]} 단원 {i+1} · {_ut}</div>'
+                      f'<div class="flow">{_body}</div></div>')
+    else:
+        inner = f'<div class="flow">{_build_sections_body(data, blank_mode, sections)}</div>'
 
     blank_badge = ""
     if blank_mode == "en":
@@ -168,6 +189,17 @@ body {{
 /* 본문 2단 자동 흐름 (넘치면 다음 단/다음 장) */
 .flow {{ column-count: 2; column-gap: 5mm; column-rule: 0.4pt solid #d1d5db; }}
 .section {{ break-inside: avoid; margin-bottom: 2.2mm; }}
+
+/* 단원 묶기 — 단원별 구분 블록 */
+.unit-block {{ margin-bottom: 3mm; }}
+.unit-block + .unit-block {{ border-top: 1.2pt dashed #94a3b8; padding-top: 2mm; }}
+.unit-head {{
+  font-size: 9pt; font-weight: 900; color: #0f172a;
+  background: linear-gradient(90deg,#e0e7ff,#f1f5f9);
+  border-left: 3pt solid #4F46E5; padding: 1mm 2.5mm; margin-bottom: 1.5mm;
+  border-radius: 2px;
+}}
+@media print {{ .unit-head {{ background: #eef2ff !important; }} }}
 
 /* 섹션 헤더 — 화면은 컬러, 인쇄(흑백)는 테두리로 구분 */
 .sec-title {{
@@ -236,9 +268,7 @@ body {{
     <span class="title">{note_title} — 시험 요약 {blank_badge}</span>
     <span class="meta">반반 BanBan · {date_str}</span>
   </div>
-  <div class="flow">
-    {body}
-  </div>
+  {inner}
   <div class="sheet-footer">반반 BanBan · 영어학습 파트너 · 시험 직전 요약노트</div>
 </div>
 </body>
@@ -267,23 +297,6 @@ def _load_cheat_bundle(note_id) -> dict | None:
         "secret_nts":  list_secret_notes(note_id),
         "past_probs":  list_past_problems(note_id),
     }
-
-
-def _merge_cheat_data(parts: list[dict]) -> dict:
-    """여러 단원의 요약 데이터(front/back)를 한 장으로 병합.
-    단원 순서를 유지하며 각 섹션 리스트를 이어 붙인다 (단어 영영풀이는 단원당 15개씩 보존)."""
-    front_keys = ["words", "grammar"]
-    back_keys  = ["dialogue_summaries", "sentences", "patterns", "secret_tips", "exam_keys"]
-    out = {"front": {k: [] for k in front_keys},
-           "back":  {k: [] for k in back_keys}}
-    for d in parts:
-        f = d.get("front", {}) or {}
-        b = d.get("back",  {}) or {}
-        for k in front_keys:
-            out["front"][k].extend(f.get(k) or d.get(k) or [])
-        for k in back_keys:
-            out["back"][k].extend(b.get(k) or d.get(k) or [])
-    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -488,7 +501,14 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
                             sections      = chosen_sections,
                             api_config    = api_cfg,
                         ))
-                    data = _merge_cheat_data(_parts)
+                    # 단원이 2개면 단원별 구분 구조로, 1개면 기존 단일 구조로 저장/렌더
+                    if len(bundles) >= 2:
+                        data = {"units": [
+                            {"title": b["note"].get("title", "") or f"단원 {i+1}", **part}
+                            for i, (b, part) in enumerate(zip(bundles, _parts))
+                        ]}
+                    else:
+                        data = _parts[0]
                     st.session_state[data_key] = data
                     # ── 자동 저장 (생성 직후 1회) ──────────────
                     try:
