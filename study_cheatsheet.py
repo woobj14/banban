@@ -3,9 +3,77 @@
 
 from __future__ import annotations
 import datetime
+import os
+import shutil
+import subprocess
+import tempfile
 import streamlit as st
 import streamlit.components.v1 as components
 from icons import icon, section_md
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 서버사이드 PDF 변환 (헤드리스 Chrome) — 브라우저 인쇄 의존 제거, 2단 보장
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _find_chrome() -> str | None:
+    """헤드리스 Chrome/Chromium 실행 파일 탐색 (맥/리눅스). 없으면 None."""
+    cands = []
+    if os.environ.get("CHROME_PATH"):
+        cands.append(os.environ["CHROME_PATH"])
+    # PATH 등록형 (주로 리눅스/Render)
+    for name in ("google-chrome", "google-chrome-stable",
+                 "chromium", "chromium-browser", "chrome"):
+        p = shutil.which(name)
+        if p:
+            cands.append(p)
+    # 맥 앱 번들 경로
+    cands += [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    ]
+    for c in cands:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+def html_to_pdf_bytes(html: str) -> bytes | None:
+    """요약노트 HTML → A4 PDF 바이트. 미리보기와 동일한 2단 결과 보장.
+    Chrome이 없으면 None (호출부에서 HTML 인쇄 폴백)."""
+    chrome = _find_chrome()
+    if not chrome:
+        return None
+    tmpdir = tempfile.mkdtemp(prefix="banban_pdf_")
+    html_path = os.path.join(tmpdir, "sheet.html")
+    pdf_path  = os.path.join(tmpdir, "sheet.pdf")
+    try:
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        # --user-data-dir은 구버전 headless가 멈추므로 사용 안 함(자동 임시 프로필 사용).
+        # --no-sandbox/--disable-dev-shm-usage는 리눅스(Render·root)에서 필요, 맥에선 무해.
+        cmd = [
+            chrome, "--headless", "--disable-gpu", "--no-sandbox",
+            "--disable-dev-shm-usage", "--no-pdf-header-footer",
+            f"--print-to-pdf={pdf_path}",
+            f"file://{html_path}",
+        ]
+        subprocess.run(cmd, capture_output=True, timeout=60)
+        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+            with open(pdf_path, "rb") as f:
+                return f.read()
+        return None
+    except Exception:
+        return None
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_pdf(html: str) -> bytes | None:
+    """동일 HTML은 한 번만 변환 (리런마다 재생성 방지)."""
+    return html_to_pdf_bytes(html)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -560,20 +628,31 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
         # ── 다운로드 / 인쇄 버튼 ──────────────
         st.success("✅ 요약노트 생성 완료! 💾 「저장된 요약노트」 탭에 자동 저장됐어요.")
 
+        note_title_safe = (combined_title or "요약노트").replace(" ","_").replace("+","와")
+        with st.spinner("PDF로 변환하는 중…"):
+            pdf_bytes = _cached_pdf(html)
+
         dl_col1, dl_col2 = st.columns(2)
         with dl_col1:
-            note_title_safe = (combined_title or "요약노트").replace(" ","_").replace("+","와")
+            if pdf_bytes:
+                st.download_button(
+                    label="📄 PDF로 다운로드 (2단 그대로)",
+                    data=pdf_bytes,
+                    file_name=f"{note_title_safe}_시험요약노트.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    type="primary",
+                )
+            else:
+                st.caption("이 환경에선 PDF 자동변환이 안 돼요. 오른쪽 HTML 다운로드 후 브라우저 인쇄(PDF 저장)를 이용하세요.")
+        with dl_col2:
             st.download_button(
-                label="⬇️ HTML 다운로드 (→ 브라우저 인쇄로 PDF 변환)",
+                label="⬇️ HTML 다운로드 (인쇄용)",
                 data=html.encode("utf-8"),
                 file_name=f"{note_title_safe}_시험요약노트.html",
                 mime="text/html",
                 use_container_width=True,
-                type="primary",
             )
-        with dl_col2:
-            # 인쇄 버튼 (JS window.print 트리거)
-            st.info("💡 HTML 다운로드 후 브라우저에서 열고 **Ctrl+P** (Mac: ⌘P) 를 누르면 PDF로 저장할 수 있습니다.")
 
         # ── 인쇄 방법 안내 ──────────────────────
         with st.expander("🖨️ 인쇄 방법 안내", expanded=False):
@@ -659,16 +738,36 @@ def _cheatsheet_saved(notes: list):
             )
             components.html(html, height=560, scrolling=True)
 
-            dc1, dc2 = st.columns([3, 1])
-            _safe = title.replace(" ", "_")
-            dc1.download_button(
-                "⬇️ HTML 다운로드 (→ 인쇄/PDF)",
-                data=html.encode("utf-8"),
-                file_name=f"{_safe}_시험요약노트.html",
-                mime="text/html", use_container_width=True,
-                key=f"cs_dl_{cs_id}",
-            )
-            if dc2.button("🗑️ 삭제", key=f"cs_del_{cs_id}", use_container_width=True):
+            _safe = title.replace(" ", "_").replace("+", "와")
+            _pdf_key = f"_saved_pdf_{cs_id}_{blank_mode}"
+            dc1, dc2, dc3 = st.columns([2, 2, 1])
+            # PDF — 버튼 눌러 변환(저장본이 많아도 일괄 변환 방지)
+            with dc1:
+                if _pdf_key not in st.session_state:
+                    if st.button("📄 PDF 만들기", key=f"cs_pdfgen_{cs_id}",
+                                 use_container_width=True, type="primary"):
+                        with st.spinner("PDF로 변환하는 중…"):
+                            st.session_state[_pdf_key] = _cached_pdf(html)
+                        st.rerun()
+                else:
+                    _pdf = st.session_state.get(_pdf_key)
+                    if _pdf:
+                        st.download_button(
+                            "📄 PDF 다운로드", data=_pdf,
+                            file_name=f"{_safe}_시험요약노트.pdf",
+                            mime="application/pdf", use_container_width=True,
+                            type="primary", key=f"cs_pdfdl_{cs_id}",
+                        )
+                    else:
+                        st.caption("PDF 자동변환 불가 — HTML 인쇄 이용")
+            with dc2:
+                st.download_button(
+                    "⬇️ HTML", data=html.encode("utf-8"),
+                    file_name=f"{_safe}_시험요약노트.html",
+                    mime="text/html", use_container_width=True,
+                    key=f"cs_dl_{cs_id}",
+                )
+            if dc3.button("🗑️", key=f"cs_del_{cs_id}", use_container_width=True):
                 delete_cheatsheet(cs_id)
                 st.rerun()
 
