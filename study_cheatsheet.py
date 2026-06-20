@@ -50,21 +50,25 @@ def _render_cheatsheet_html(note_title: str, data: dict, date_str: str,
 
     body = ""
 
-    # ── 단어 ──────────────────────────────────────
+    # ── 단어 영영풀이 (시험에 영영풀이→단어 매칭 출제 대비) ─────
     if words:
         rows = ""
         for i, w in enumerate(words):
-            en  = w.get("en", "")
-            kr  = w.get("kr", "")
-            tip = w.get("tip", "")
-            tip_span = f'<span class="tip"> ★{tip}</span>' if tip else ""
+            en     = w.get("en", "")
+            def_en = w.get("def_en", "") or w.get("definition", "")
+            kr     = w.get("kr", "")
             bg = ' style="background:#f5f5f5;"' if i % 2 == 0 else ""
+            # 영영풀이는 항상 보이는 '단서' → 빈칸 모드에서도 가리지 않음.
+            #   en(단어) 가림 = 영영풀이 보고 단어 떠올리기(실제 시험 유형)
+            #   kr 가림      = 단어·영영 보고 뜻 떠올리기
             en_h = _blank(en, blank_mode == "en")
             kr_h = _blank(kr, blank_mode == "kr")
+            def_sp = f'<div class="w-def">{def_en}</div>' if def_en else ""
             rows += (f'<div class="word-row"{bg}>'
-                     f'<span class="w-en">{en_h}</span>'
-                     f'<span class="w-kr">{kr_h}{tip_span if blank_mode!="kr" else ""}</span></div>\n')
-        body += (f'<div class="section"><div class="sec-title sc-w">단어 ({len(words)})</div>'
+                     f'<div class="w-head"><span class="w-en">{en_h}</span>'
+                     f'<span class="w-kr">{kr_h}</span></div>'
+                     f'{def_sp}</div>\n')
+        body += (f'<div class="section"><div class="sec-title sc-w">단어 영영풀이 ({len(words)})</div>'
                  f'<div class="word-grid">{rows}</div></div>')
 
     # ── 문법 ──────────────────────────────────────
@@ -178,11 +182,14 @@ body {{
 .ds-item {{ padding: 0.5mm 1.5mm; border-left: 1.5pt solid #0e7490; margin-bottom: 1mm; break-inside: avoid; font-size: 7pt; color: #374151; }}
 .ds-title {{ font-weight: 700; color: #155e75; }}
 
-.word-grid {{ column-count: 2; column-gap: 2mm; }}
-.word-row {{ display: flex; gap: 1mm; padding: 0.4mm 1.5mm; break-inside: avoid; }}
-.w-en {{ font-weight: 700; color: #1d4ed8; min-width: 17mm; flex-shrink: 0; font-size: 7.5pt; }}
-.w-kr {{ color: #374151; font-size: 7.5pt; }}
-.tip  {{ color: #9333ea; font-size: 6.5pt; }}
+.word-grid {{ column-count: 2; column-gap: 4mm; }}
+.word-row {{ padding: 0.6mm 1.5mm; margin-bottom: 0.8mm; break-inside: avoid;
+             border-left: 1.5pt solid #4F46E5; }}
+.w-head {{ display: flex; gap: 1.5mm; align-items: baseline; }}
+.w-en {{ font-weight: 800; color: #1d4ed8; font-size: 7.5pt; }}
+.w-kr {{ color: #374151; font-size: 7pt; }}
+.w-def {{ color: #4b5563; font-size: 7pt; margin-top: 0.2mm; line-height: 1.25; }}
+.w-def::before {{ content: "def. "; color: #6366f1; font-weight: 700; font-size: 6pt; }}
 
 .g-item {{ padding: 0.5mm 1.5mm; border-left: 1.5pt solid #7C3AED; margin-bottom: 1.4mm; break-inside: avoid; }}
 .g-rule {{ font-weight: 700; color: #5b21b6; font-size: 7.5pt; }}
