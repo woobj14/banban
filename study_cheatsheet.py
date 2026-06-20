@@ -52,14 +52,16 @@ def _build_sections_body(data: dict, blank_mode: str = "none",
         for i, w in enumerate(words):
             en     = w.get("en", "")
             def_en = w.get("def_en", "") or w.get("definition", "")
+            def_kr = w.get("def_kr", "")
             kr     = w.get("kr", "")
             bg = ' style="background:#f5f5f5;"' if i % 2 == 0 else ""
-            # 영영풀이는 항상 보이는 '단서' → 빈칸 모드에서도 가리지 않음.
+            # 영영풀이·해석은 항상 보이는 '단서' → 빈칸 모드에서도 가리지 않음.
             #   en(단어) 가림 = 영영풀이 보고 단어 떠올리기(실제 시험 유형)
             #   kr 가림      = 단어·영영 보고 뜻 떠올리기
             en_h = _blank(en, blank_mode == "en")
             kr_h = _blank(kr, blank_mode == "kr")
-            def_sp = f'<div class="w-def">{def_en}</div>' if def_en else ""
+            def_kr_sp = f'<span class="w-def-kr">— {def_kr}</span>' if def_kr else ""
+            def_sp = f'<div class="w-def">{def_en}{def_kr_sp}</div>' if def_en else ""
             rows += (f'<div class="word-row"{bg}>'
                      f'<div class="w-head"><span class="w-en">{en_h}</span>'
                      f'<span class="w-kr">{kr_h}</span></div>'
@@ -222,6 +224,7 @@ body {{
 .w-kr {{ color: #374151; font-size: 7pt; }}
 .w-def {{ color: #4b5563; font-size: 7pt; margin-top: 0.2mm; line-height: 1.25; }}
 .w-def::before {{ content: "def. "; color: #6366f1; font-weight: 700; font-size: 6pt; }}
+.w-def-kr {{ color: #94a3b8; font-size: 6.5pt; }}
 
 .g-item {{ padding: 0.5mm 1.5mm; border-left: 1.5pt solid #7C3AED; margin-bottom: 1.4mm; break-inside: avoid; }}
 .g-rule {{ font-weight: 700; color: #5b21b6; font-size: 7.5pt; }}
