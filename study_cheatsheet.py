@@ -147,14 +147,17 @@ def _render_cheatsheet_html(note_title: str, data: dict, date_str: str,
     """
     units = data.get("units") if isinstance(data, dict) else None
     if units:
+        # 단원 헤더는 column-span으로 양단 전체를 가로지르고, 모든 섹션은 '하나의'
+        # 다단 흐름에 연속 배치 → 페이지를 넘겨도 빈칸 없이 빽빽하게 이어짐.
+        # (단원별 .flow로 나누면 다음 단원이 남은 공간에 못 들어가 통째로 다음 장 점프)
         _badges = ["📘", "📗", "📙", "📕"]
-        inner = ""
+        _parts = []
         for i, u in enumerate(units):
-            _ut   = u.get("title", "") or f"단원 {i+1}"
-            _body = _build_sections_body(u, blank_mode, sections)
-            inner += (f'<div class="unit-block">'
-                      f'<div class="unit-head">{_badges[i % len(_badges)]} 단원 {i+1} · {_ut}</div>'
-                      f'<div class="flow">{_body}</div></div>')
+            _ut = u.get("title", "") or f"단원 {i+1}"
+            _parts.append(
+                f'<div class="unit-head">{_badges[i % len(_badges)]} 단원 {i+1} · {_ut}</div>')
+            _parts.append(_build_sections_body(u, blank_mode, sections))
+        inner = f'<div class="flow">{"".join(_parts)}</div>'
     else:
         inner = f'<div class="flow">{_build_sections_body(data, blank_mode, sections)}</div>'
 
@@ -190,23 +193,27 @@ body {{
 
 /* 본문 2단 자동 흐름 (넘치면 다음 단/다음 장) */
 .flow {{ column-count: 2; column-gap: 5mm; column-rule: 0.4pt solid #d1d5db; }}
-.section {{ break-inside: avoid; margin-bottom: 2.2mm; }}
+/* 섹션은 단을 넘어 자연스럽게 흐름 (break-inside:avoid 시 큰 섹션이 통째 점프해 빈칸 발생) */
+.section {{ margin-bottom: 2.2mm; }}
 
-/* 단원 묶기 — 단원별 구분 블록 */
-.unit-block {{ margin-bottom: 3mm; }}
-.unit-block + .unit-block {{ border-top: 1.2pt dashed #94a3b8; padding-top: 2mm; }}
+/* 단원 묶기 — 헤더는 단 안에서 내용과 함께 흐름 (빈칸 없이 빽빽).
+   column-span은 인쇄에서 헤더가 고아로 남아 큰 빈칸을 만들어 사용 안 함. */
 .unit-head {{
-  font-size: 9pt; font-weight: 900; color: #0f172a;
-  background: linear-gradient(90deg,#e0e7ff,#f1f5f9);
-  border-left: 3pt solid #4F46E5; padding: 1mm 2.5mm; margin-bottom: 1.5mm;
-  border-radius: 2px;
+  break-after: avoid;        /* 헤더가 단/페이지 끝에 홀로 남지 않게 */
+  break-inside: avoid;
+  font-size: 8.5pt; font-weight: 900; color: #0f172a;
+  background: #e0e7ff;
+  border-left: 3pt solid #4F46E5; border-bottom: 0.6pt solid #4F46E5;
+  padding: 0.8mm 2mm; margin: 1.5mm 0 1mm; border-radius: 2px;
 }}
+.unit-head:first-child {{ margin-top: 0; }}
 @media print {{ .unit-head {{ background: #eef2ff !important; }} }}
 
 /* 섹션 헤더 — 화면은 컬러, 인쇄(흑백)는 테두리로 구분 */
 .sec-title {{
   color: white; font-size: 7.5pt; font-weight: 900;
   padding: 0.8mm 2mm; margin-bottom: 1mm; letter-spacing: 0.02em;
+  break-after: avoid;   /* 섹션 헤더가 단/페이지 끝에 홀로 남지 않게 */
 }}
 .sc-w {{ background:#4F46E5; }} .sc-g {{ background:#7C3AED; }}
 .sc-s {{ background:#0891B2; }} .sc-p {{ background:#059669; }}
@@ -216,7 +223,9 @@ body {{
 .ds-item {{ padding: 0.5mm 1.5mm; border-left: 1.5pt solid #0e7490; margin-bottom: 1mm; break-inside: avoid; font-size: 7pt; color: #374151; }}
 .ds-title {{ font-weight: 700; color: #155e75; }}
 
-.word-grid {{ column-count: 2; column-gap: 4mm; }}
+/* word-grid는 .flow 안의 단을 또 쪼개지 않도록 컬럼 제거 (중첩 시 4단으로 깨짐).
+   단어행이 .flow의 2단에 직접 흘러 페이지를 넘겨도 빽빽하게 채워짐. */
+.word-grid {{ }}
 .word-row {{ padding: 0.6mm 1.5mm; margin-bottom: 0.8mm; break-inside: avoid;
              border-left: 1.5pt solid #4F46E5; }}
 .w-head {{ display: flex; gap: 1.5mm; align-items: baseline; }}
