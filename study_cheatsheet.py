@@ -632,20 +632,18 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
         with st.spinner("PDF로 변환하는 중…"):
             pdf_bytes = _cached_pdf(html)
 
-        dl_col1, dl_col2 = st.columns(2)
-        with dl_col1:
-            if pdf_bytes:
-                st.download_button(
-                    label="📄 PDF로 다운로드 (2단 그대로)",
-                    data=pdf_bytes,
-                    file_name=f"{note_title_safe}_시험요약노트.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    type="primary",
-                )
-            else:
-                st.caption("이 환경에선 PDF 자동변환이 안 돼요. 오른쪽 HTML 다운로드 후 브라우저 인쇄(PDF 저장)를 이용하세요.")
-        with dl_col2:
+        if pdf_bytes:
+            st.download_button(
+                label="📄 PDF로 다운로드 (2단 그대로)",
+                data=pdf_bytes,
+                file_name=f"{note_title_safe}_시험요약노트.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary",
+            )
+        else:
+            # PDF 자동변환 불가 환경(Chrome 없음)에서만 HTML 인쇄 폴백 제공
+            st.caption("이 환경에선 PDF 자동변환이 안 돼요. 아래 HTML을 받아 브라우저 인쇄(PDF 저장)를 이용하세요.")
             st.download_button(
                 label="⬇️ HTML 다운로드 (인쇄용)",
                 data=html.encode("utf-8"),
@@ -657,19 +655,12 @@ def _cheatsheet_new(student_id, student_name: str, api_cfg: dict, notes: list):
         # ── 인쇄 방법 안내 ──────────────────────
         with st.expander("🖨️ 인쇄 방법 안내", expanded=False):
             st.markdown("""
-**양면 인쇄 방법:**
-1. 위 **HTML 다운로드** 버튼 클릭
-2. 다운로드된 `.html` 파일을 브라우저(Chrome/Edge)로 열기
-3. **Ctrl+P** (Mac: ⌘P) 를 눌러 인쇄 대화상자 열기
-4. **대상**: PDF로 저장 또는 프린터 선택
-5. **용지 크기**: A4
-6. **여백**: 없음 (None) 또는 최소
-7. **양면 인쇄**: 긴 쪽으로 뒤집기 (Flip on long edge) 선택
-8. 인쇄 또는 저장
+**PDF로 바로 출력:**
+1. 위 **📄 PDF로 다운로드** 버튼 클릭 → 받은 `.pdf` 파일 열기
+2. **Ctrl+P** (Mac: ⌘P) → 프린터 선택 → **용지 A4**
 
-**PDF → 양면 출력 팁:**
-- Chrome: '추가 설정' → '양면 인쇄' 체크
-- Edge: '기타 설정' → '양면 인쇄' 체크
+**양면 출력 팁:**
+- Chrome/Edge: '추가 설정' → '양면 인쇄' 체크
 - macOS: 인쇄 대화상자 하단 '양면' 체크박스
 """)
 
@@ -740,7 +731,7 @@ def _cheatsheet_saved(notes: list):
 
             _safe = title.replace(" ", "_").replace("+", "와")
             _pdf_key = f"_saved_pdf_{cs_id}_{blank_mode}"
-            dc1, dc2, dc3 = st.columns([2, 2, 1])
+            dc1, dc2 = st.columns([4, 1])
             # PDF — 버튼 눌러 변환(저장본이 많아도 일괄 변환 방지)
             with dc1:
                 if _pdf_key not in st.session_state:
@@ -759,15 +750,14 @@ def _cheatsheet_saved(notes: list):
                             type="primary", key=f"cs_pdfdl_{cs_id}",
                         )
                     else:
-                        st.caption("PDF 자동변환 불가 — HTML 인쇄 이용")
-            with dc2:
-                st.download_button(
-                    "⬇️ HTML", data=html.encode("utf-8"),
-                    file_name=f"{_safe}_시험요약노트.html",
-                    mime="text/html", use_container_width=True,
-                    key=f"cs_dl_{cs_id}",
-                )
-            if dc3.button("🗑️", key=f"cs_del_{cs_id}", use_container_width=True):
+                        # Chrome 없는 환경에서만 HTML 인쇄 폴백
+                        st.download_button(
+                            "⬇️ HTML (PDF변환 불가 시)", data=html.encode("utf-8"),
+                            file_name=f"{_safe}_시험요약노트.html",
+                            mime="text/html", use_container_width=True,
+                            key=f"cs_dl_{cs_id}",
+                        )
+            if dc2.button("🗑️", key=f"cs_del_{cs_id}", use_container_width=True):
                 delete_cheatsheet(cs_id)
                 st.rerun()
 
