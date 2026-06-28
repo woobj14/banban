@@ -6,7 +6,7 @@ from datetime import date
 from icons import icon, section_md, title_md
 from study_db import (save_past_problems, list_past_problems, add_question_wrong,
                       update_past_problems, delete_past_problems)
-from study_ai import extract_past_problems_from_text
+from study_ai import extract_past_problems_from_text, explain_wrong_answer
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ def page_upload(note: dict | None, api_config: dict | None,
 
     # 기출 퀴즈 진행 중이면 우선 표시
     if st.session_state.get("past_quiz_state"):
-        _render_past_quiz(student_id)
+        _render_past_quiz(student_id, api_config)
         return
 
     tab_upload, tab_saved = st.tabs(["📤 업로드", "📚 저장된 기출문제"])
@@ -466,7 +466,7 @@ def page_upload(note: dict | None, api_config: dict | None,
 # 내신문제 방식 기출 퀴즈 렌더링
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_past_quiz(student_id: int | None):
+def _render_past_quiz(student_id: int | None, api_config: dict | None = None):
     """기출문제 퀴즈 — 내신문제 시스템 방식 (정답 숨김 + 채점 + 오답노트)"""
     state = st.session_state.get("past_quiz_state", {})
     if not state:
@@ -478,7 +478,7 @@ def _render_past_quiz(student_id: int | None):
     src_name  = state.get("source_name", "기출문제")
 
     if submitted:
-        _render_past_quiz_result(state, student_id)
+        _render_past_quiz_result(state, student_id, api_config)
         return
 
     # ── 진행 중 화면 ───────────────────────────────────────────────
@@ -625,7 +625,8 @@ def _render_past_quiz(student_id: int | None):
         st.rerun()
 
 
-def _render_past_quiz_result(state: dict, student_id: int | None):
+def _render_past_quiz_result(state: dict, student_id: int | None,
+                             api_config: dict | None = None):
     """기출 퀴즈 채점 결과 화면 + 오답노트 연동"""
     problems     = state["problems"]
     answers      = state["answers"]
@@ -643,8 +644,9 @@ def _render_past_quiz_result(state: dict, student_id: int | None):
     total = len(scorable)
     pct   = int(score / total * 100) if total else 0
 
-    # 오답 문제 자동 오답노트 저장 (최초 1회)
+    # 오답 문제 자동 오답노트 저장 (최초 1회) — 성공/실패를 정직하게 기록
     if not state.get("wrongnote_saved") and student_id:
+        saved_wrong: dict[int, bool] = {}
         for i, p in enumerate(problems):
             user_ans = answers.get(i, "")
             correct  = p.get("answer", "").strip()
@@ -658,8 +660,9 @@ def _render_past_quiz_result(state: dict, student_id: int | None):
                         question_snapshot=p,
                         user_answer=user_ans,
                     )
+                    saved_wrong[i] = True
                 except Exception:
-                    pass
+                    saved_wrong[i] = False
                 # 문장 복습 스케줄 자동 등록
                 try:
                     from study_review import auto_schedule_sentence
@@ -671,6 +674,7 @@ def _render_past_quiz_result(state: dict, student_id: int | None):
                         )
                 except Exception:
                     pass
+        state["wrong_saved"]    = saved_wrong
         state["wrongnote_saved"] = True
 
     if pct >= 90:
@@ -760,13 +764,28 @@ def _render_past_quiz_result(state: dict, student_id: int | None):
 </div>
 """, unsafe_allow_html=True)
 
-            # 자동 오답노트 저장 알림
-            if is_ok is False and student_id:
-                st.markdown(
-                    '<div style="font-size:0.78rem;color:#059669;margin:4px 0;">'
-                    '📌 오답노트에 자동 저장됐어요!</div>',
-                    unsafe_allow_html=True,
-                )
+            # AI 해설 + 자동 오답노트 저장 알림 (오답일 때)
+            if is_ok is False:
+                _ex_key = f"past_explain_{note_id}_{i}"
+                if api_config and st.button("AI 해설 보기",
+                                            key=f"past_explain_btn_{i}",
+                                            use_container_width=True):
+                    with st.spinner("이 오답, 왜 틀렸는지 풀어주는 중…"):
+                        st.session_state[_ex_key] = explain_wrong_answer(p, user_ans, api_config)
+                if st.session_state.get(_ex_key):
+                    st.info(st.session_state[_ex_key])
+
+                _ws = state.get("wrong_saved", {})
+                if not student_id:
+                    st.caption("로그인하면 이 오답이 오답노트에 자동 저장돼요.")
+                elif _ws.get(i):
+                    st.markdown(
+                        '<div style="font-size:0.78rem;color:#059669;margin:4px 0;">'
+                        '📌 오답노트에 자동 저장됐어요!</div>',
+                        unsafe_allow_html=True,
+                    )
+                elif _ws.get(i) is False:
+                    st.caption("⚠️ 오답노트 저장에 실패했어요. 잠시 후 다시 시도해 주세요.")
 
     # ── 미저장 문제 세트 저장 옵션 ─────────────────────────────────
     if from_preview and note_id:

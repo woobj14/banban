@@ -376,6 +376,7 @@ def _render_ox(note: dict, student_id: int | None, api_config: dict | None):
                 ox["score"] += 1
             else:
                 ox["wrong"].append(q)
+                ox["last_saved"] = None
                 if ox["student_id"]:
                     try:
                         add_question_wrong(
@@ -386,20 +387,27 @@ def _render_ox(note: dict, student_id: int | None, api_config: dict | None):
                              "type": "O/X"},
                             picked,
                         )
+                        ox["last_saved"] = True
                     except Exception:
-                        pass
+                        ox["last_saved"] = False
             st.rerun()
     else:
         if ox["last_ok"]:
             st.success("정답이에요!")
         else:
             st.error(f"아쉬워요. 정답은 **{q['answer']}**")
-            st.markdown(
-                f'<div style="font-size:0.78rem;color:#059669;margin:2px 0 8px;'
-                f'display:flex;align-items:center;gap:5px;">'
-                f'{icon("check-circle",13,"#059669")} 오답노트에 자동 저장됐어요</div>',
-                unsafe_allow_html=True,
-            )
+            _ls = ox.get("last_saved")
+            if _ls is True:
+                st.markdown(
+                    f'<div style="font-size:0.78rem;color:#059669;margin:2px 0 8px;'
+                    f'display:flex;align-items:center;gap:5px;">'
+                    f'{icon("check-circle",13,"#059669")} 오답노트에 자동 저장됐어요</div>',
+                    unsafe_allow_html=True,
+                )
+            elif _ls is False:
+                st.caption("⚠️ 오답노트 저장에 실패했어요. 잠시 후 다시 시도해 주세요.")
+            elif not ox.get("student_id"):
+                st.caption("로그인하면 이 오답이 오답노트에 저장돼요.")
         if q.get("explain"):
             st.markdown(
                 f'<div style="background:#F0FDF4;border-radius:10px;padding:10px 14px;'
@@ -916,59 +924,67 @@ def _render_result(exam_state: dict, api_config: dict | None):
 
     # 채점 결과 DB 저장
     if not exam_state.get("result_saved"):
+        saved_wrong: dict[int, bool] = {}   # 문항별 오답노트 저장 성공 여부(정직한 표시용)
+        save_err: str | None = None
         try:
             save_exam_result(
                 exam_state["exam_set_id"], student_id,
                 {str(k): v for k, v in answers.items()},
                 score, total, ""
             )
-            # 오답 단어 기록 + 문제 오답노트 자동 저장
-            if student_id:
-                for i, q in enumerate(questions):
-                    user_ans = answers.get(i, "")
-                    correct  = q.get("answer", "").strip()
-                    if user_ans.strip() != correct and q.get("type") != "서술형":
-                        # 지문에서 단어 찾기 (간단한 매칭)
+        except Exception as e:
+            save_err = str(e)
+        # 오답 단어 기록 + 문제 오답노트 자동 저장
+        if student_id:
+            for i, q in enumerate(questions):
+                user_ans = answers.get(i, "")
+                correct  = q.get("answer", "").strip()
+                if user_ans.strip() != correct and q.get("type") != "서술형":
+                    # 지문에서 단어 찾기 (간단한 매칭)
+                    try:
                         passage = q.get("passage", "") + " " + q.get("question", "")
                         for en, kr in exam_state.get("words", []):
                             if en.lower() in passage.lower():
                                 record_wrong(student_id, note_id, en, kr)
                                 break
-                        # 오답 문제 자동 오답노트 저장
-                        try:
-                            add_question_wrong(
-                                student_id=student_id,
-                                note_id=note_id,
-                                bank_question_id=q.get("bank_id"),
-                                source_type="exam",
-                                question_snapshot=q,
-                                user_answer=user_ans,
+                    except Exception:
+                        pass
+                    # 오답 문제 자동 오답노트 저장 — 성공/실패를 기록(삼키지 않음)
+                    try:
+                        add_question_wrong(
+                            student_id=student_id,
+                            note_id=note_id,
+                            bank_question_id=q.get("bank_id"),
+                            source_type="exam",
+                            question_snapshot=q,
+                            user_answer=user_ans,
+                        )
+                        saved_wrong[i] = True
+                    except Exception as e:
+                        saved_wrong[i] = False
+                        save_err = save_err or str(e)
+                    # 문장 복습 스케줄 자동 등록
+                    try:
+                        from study_review import auto_schedule_sentence
+                        passage = q.get("passage", "").strip()
+                        if passage and len(passage) > 5:
+                            note_sents = exam_state.get("sentences", [])
+                            kr_text = ""
+                            for en_s, kr_s in note_sents:
+                                if en_s.strip() and (
+                                    en_s.strip() in passage or
+                                    passage[:40].strip() in en_s
+                                ):
+                                    kr_text = kr_s
+                                    break
+                            sent_idx = abs(hash(passage[:50])) % 1000000
+                            auto_schedule_sentence(
+                                student_id, note_id, sent_idx, passage, kr_text
                             )
-                        except Exception:
-                            pass
-                        # 문장 복습 스케줄 자동 등록
-                        try:
-                            from study_review import auto_schedule_sentence
-                            passage = q.get("passage", "").strip()
-                            if passage and len(passage) > 5:
-                                # 노트 본문에서 매칭 한글 번역 검색
-                                note_sents = exam_state.get("sentences", [])
-                                kr_text = ""
-                                for en_s, kr_s in note_sents:
-                                    if en_s.strip() and (
-                                        en_s.strip() in passage or
-                                        passage[:40].strip() in en_s
-                                    ):
-                                        kr_text = kr_s
-                                        break
-                                sent_idx = abs(hash(passage[:50])) % 1000000
-                                auto_schedule_sentence(
-                                    student_id, note_id, sent_idx, passage, kr_text
-                                )
-                        except Exception:
-                            pass
-        except Exception:
-            pass
+                    except Exception:
+                        pass
+        exam_state["wrong_saved"] = saved_wrong
+        exam_state["save_err"]    = save_err
         exam_state["result_saved"] = True
 
     # 점수 표시
@@ -1020,19 +1036,29 @@ def _render_result(exam_state: dict, api_config: dict | None):
 
             # AI 해설 버튼 + 자동 오답노트 안내 (오답일 때)
             if not is_ok and q_type != "서술형":
-                if api_config and st.button(f"AI 해설 보기",
+                # AI 해설 — 세션에 저장해 버튼/리런 후에도 유지
+                _ex_key = f"exam_explain_{note_id}_{i}"
+                if api_config and st.button("AI 해설 보기",
                                              key=f"res_explain_{i}",
                                              use_container_width=True):
                     with st.spinner("이 오답, 왜 틀렸는지 낱낱이 파헤치는 중…"):
-                        explain = explain_wrong_answer(q, user_ans, api_config)
-                    st.info(explain)
-                if student_id:
+                        st.session_state[_ex_key] = explain_wrong_answer(q, user_ans, api_config)
+                if st.session_state.get(_ex_key):
+                    st.info(st.session_state[_ex_key])
+
+                # 오답노트 저장 — 실제 결과를 정직하게 표시
+                _ws = exam_state.get("wrong_saved", {})
+                if not student_id:
+                    st.caption("로그인하면 이 오답이 오답노트에 자동 저장돼요.")
+                elif _ws.get(i):
                     st.markdown(
                         f'<div style="font-size:0.78rem;color:#059669;margin:4px 0;'
                         f'display:flex;align-items:center;gap:5px;">'
                         f'{icon("check-circle",13,"#059669")} 오답노트에 자동 저장됐어요</div>',
                         unsafe_allow_html=True,
                     )
+                elif _ws.get(i) is False:
+                    st.caption("⚠️ 오답노트 저장에 실패했어요. 잠시 후 다시 시도해 주세요.")
 
     col1, col2 = st.columns(2)
     if col1.button("다시 풀기", use_container_width=True):
