@@ -3,6 +3,7 @@ headless = true
 port = 8502
 enableCORS = false
 enableXsrfProtection = false
+enableStaticServing = true
 
 [browser]
 gatherUsageStats = false

@@ -31,6 +31,45 @@ st.set_page_config(page_title="반반 BanBan", page_icon="📖",
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# PWA — 홈화면 추가/standalone 실행 (매니페스트·아이콘은 static/ 정적 서빙)
+#   components.html iframe(동일 출처)에서 부모 문서 <head>에 1회 주입
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _inject_pwa():
+    import streamlit.components.v1 as _components
+    _components.html(
+        """
+        <script>
+        (function(){
+          try {
+            var d = window.parent.document;
+            if (d.getElementById('bb-pwa-meta')) return;          // 1회만
+            var mark = d.createElement('meta'); mark.id = 'bb-pwa-meta';
+            d.head.appendChild(mark);
+            function add(tag, attrs){
+              var e = d.createElement(tag);
+              for (var k in attrs) e.setAttribute(k, attrs[k]);
+              d.head.appendChild(e);
+            }
+            add('link', {rel:'manifest',        href:'/app/static/manifest.json'});
+            add('link', {rel:'apple-touch-icon', href:'/app/static/apple-touch-icon.png'});
+            add('meta', {name:'theme-color',     content:'#4338CA'});
+            add('meta', {name:'mobile-web-app-capable',             content:'yes'});
+            add('meta', {name:'apple-mobile-web-app-capable',       content:'yes'});
+            add('meta', {name:'apple-mobile-web-app-status-bar-style', content:'default'});
+            add('meta', {name:'apple-mobile-web-app-title',         content:'반반'});
+          } catch (e) {}
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
+_inject_pwa()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 인증 게이트 — Supabase 미설정 시 건너뜀 (로컬 개발 호환)
 # ─────────────────────────────────────────────────────────────────────────────
 
