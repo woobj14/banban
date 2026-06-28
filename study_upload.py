@@ -7,6 +7,7 @@ from icons import icon, section_md, title_md
 from study_db import (save_past_problems, list_past_problems, add_question_wrong,
                       update_past_problems, delete_past_problems)
 from study_ai import extract_past_problems_from_text, explain_wrong_answer
+from study_exam import is_answer_correct, _option_index
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -639,7 +640,7 @@ def _render_past_quiz_result(state: dict, student_id: int | None,
     score    = sum(
         1 for i, p in enumerate(problems)
         if p.get("answer") and
-           answers.get(i, "").strip() == p["answer"].strip()
+           is_answer_correct(answers.get(i, ""), p["answer"], p.get("options"))
     )
     total = len(scorable)
     pct   = int(score / total * 100) if total else 0
@@ -650,7 +651,7 @@ def _render_past_quiz_result(state: dict, student_id: int | None,
         for i, p in enumerate(problems):
             user_ans = answers.get(i, "")
             correct  = p.get("answer", "").strip()
-            if correct and user_ans.strip() != correct:
+            if correct and not is_answer_correct(user_ans, correct, p.get("options")):
                 try:
                     add_question_wrong(
                         student_id=student_id,
@@ -715,7 +716,7 @@ def _render_past_quiz_result(state: dict, student_id: int | None,
             is_ok = None
             color, bg_c, mark = "#6b7280", "#f9fafb", "—"
         else:
-            is_ok = (user_ans.strip() == correct)
+            is_ok = is_answer_correct(user_ans, correct, p.get("options"))
             if is_ok:
                 color, bg_c, mark = "#16a34a", "#f0fdf4", "✅"
             else:
@@ -741,10 +742,13 @@ def _render_past_quiz_result(state: dict, student_id: int | None,
                 unsafe_allow_html=True,
             )
 
-            # 선택지 (정답/오답 강조)
-            for opt in p.get("options", []):
-                is_correct_opt = (opt.strip() == correct)
-                is_user_opt    = (opt.strip() == user_ans.strip())
+            # 선택지 (정답/오답 강조) — 보기 인덱스로 매칭
+            _opts        = p.get("options", [])
+            _correct_idx = _option_index(correct, _opts)
+            _user_idx    = _option_index(user_ans, _opts)
+            for _oi, opt in enumerate(_opts):
+                is_correct_opt = (_oi == _correct_idx)
+                is_user_opt    = (_oi == _user_idx)
                 opt_style = ""
                 if is_correct_opt:
                     opt_style = "background:#dcfce7;color:#166534;font-weight:700;border-radius:4px;padding:2px 6px;"

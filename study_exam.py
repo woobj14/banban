@@ -14,6 +14,65 @@ from plans    import can_use_ai, increment_ai_usage, upgrade_banner, ai_usage_ba
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 채점 유틸 — 보기 번호(인덱스)로 견고하게 채점
+#   AI가 answer를 "② met"/"met"/"②"/"2)" 등 제각각 형식으로 주어도
+#   같은 보기를 가리키면 정답으로 인정 (정답이 오답 처리되는 버그 방지)
+# ─────────────────────────────────────────────────────────────────────────────
+import re as _re
+
+_CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩"
+
+def _norm_ans(s: str) -> str:
+    return _re.sub(r"\s+", " ",
+                   _re.sub(r"[^\w가-힣]", " ", (s or "").lower())).strip()
+
+def _strip_marker(s: str) -> str:
+    """앞쪽 보기 기호(①, 1), (2), A. 등) 제거 후 본문만."""
+    s = (s or "").strip()
+    s = _re.sub(r"^\s*[\(\[]?\s*(?:[①②③④⑤⑥⑦⑧⑨⑩]|[1-9][0-9]?|[a-eA-E])\s*[\)\].:、]?\s+",
+                "", s)
+    return s.strip()
+
+def _marker_to_index(s: str):
+    """순수 보기 기호('②','2','(3)','B')만일 때 0-based 인덱스. 아니면 None."""
+    s = (s or "").strip()
+    if len(s) == 1 and s in _CIRCLED:
+        return _CIRCLED.index(s)
+    m = _re.fullmatch(r"[\(\[]?\s*([1-9][0-9]?|[a-eA-E])\s*[\)\].:]?", s)
+    if m:
+        tok = m.group(1)
+        return int(tok) - 1 if tok.isdigit() else "abcde".index(tok.lower())
+    return None
+
+def _option_index(value: str, options: list) -> int:
+    """value(정답 또는 학생 선택)가 가리키는 보기 인덱스(-1=못 찾음)."""
+    if not options:
+        return -1
+    idx = _marker_to_index(value)
+    if idx is not None and 0 <= idx < len(options):
+        return idx
+    nv_strip = _norm_ans(_strip_marker(value))
+    nv_full  = _norm_ans(value)
+    for i, o in enumerate(options):
+        if (_norm_ans(_strip_marker(o)) == nv_strip and nv_strip) \
+           or _norm_ans(o) == nv_full:
+            return i
+    return -1
+
+def is_answer_correct(user_ans: str, correct: str, options: list | None) -> bool:
+    """객관식은 보기 인덱스로, 단답은 정규화 텍스트로 채점."""
+    options = options or []
+    if not options:
+        return _norm_ans(_strip_marker(user_ans)) == _norm_ans(_strip_marker(correct)) \
+            or _norm_ans(user_ans) == _norm_ans(correct)
+    ui = _option_index(user_ans, options)
+    ci = _option_index(correct, options)
+    if ui >= 0 and ci >= 0:
+        return ui == ci
+    return _norm_ans(_strip_marker(user_ans)) == _norm_ans(_strip_marker(correct))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 내부 유틸
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -119,7 +178,7 @@ def _render_question_card(i: int, q: dict, show_answer: bool = False,
 """, unsafe_allow_html=True)
 
     if show_answer:
-        is_ok  = user_ans.strip() == q.get("answer", "").strip()
+        is_ok  = is_answer_correct(user_ans, q.get("answer", ""), q.get("options"))
         color  = "#16a34a" if is_ok else "#dc2626"
         bg     = "#f0fdf4" if is_ok else "#fef2f2"
         ans_icon = icon("check-circle", 14, color) if is_ok else icon("x-circle", 14, color)
@@ -916,7 +975,7 @@ def _render_result(exam_state: dict, api_config: dict | None):
             # 서술형은 AI 채점 (나중에 구현), 일단 부분점수 없이 제출만
             pass
         else:
-            if user_ans.strip() == correct:
+            if is_answer_correct(user_ans, q.get("answer", ""), q.get("options")):
                 score += 1
 
     total = len(questions)
@@ -939,7 +998,8 @@ def _render_result(exam_state: dict, api_config: dict | None):
             for i, q in enumerate(questions):
                 user_ans = answers.get(i, "")
                 correct  = q.get("answer", "").strip()
-                if user_ans.strip() != correct and q.get("type") != "서술형":
+                if q.get("type") != "서술형" and not is_answer_correct(
+                        user_ans, q.get("answer", ""), q.get("options")):
                     # 지문에서 단어 찾기 (간단한 매칭)
                     try:
                         passage = q.get("passage", "") + " " + q.get("question", "")
@@ -1011,7 +1071,8 @@ def _render_result(exam_state: dict, api_config: dict | None):
         correct  = q.get("answer", "").strip()
         q_type   = q.get("type", "")
 
-        is_ok    = (q_type == "서술형") or (user_ans.strip() == correct)
+        is_ok    = (q_type == "서술형") or is_answer_correct(
+            user_ans, q.get("answer", ""), q.get("options"))
         color    = "#16a34a" if is_ok else "#dc2626"
         bg_c     = "#f0fdf4" if is_ok else "#fef2f2"
         mark     = "정답" if is_ok else "오답"
