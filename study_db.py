@@ -4,12 +4,27 @@
 
 import json
 import random
+import streamlit as st
 from datetime import datetime, timedelta
 from supabase_client import get_supabase
 
 # 하위 호환: SQLite 경로 (마이그레이션 기간 중 참조용)
 from pathlib import Path
 DB_PATH = Path(__file__).parent / "data" / "study.db"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 캐시 무효화 — 노트별 콘텐츠(문제뱅크·문법·비법·기출·요약노트) 쓰기 시 호출.
+#   학생 진행 데이터(오답·로그·진도·통계)는 실시간성이 중요해 캐싱하지 않음.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _invalidate_content():
+    for fn in (get_question_bank, count_question_bank, get_grammar_points,
+               list_secret_notes, list_past_problems, list_cheatsheets):
+        try:
+            fn.clear()
+        except Exception:
+            pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +135,7 @@ def delete_wrong_note(student_id: int, note_id: int, word_en: str):
 # 단어 AI 캐시
 # ─────────────────────────────────────────────────────────────────────────────
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_word_cache(word_en: str) -> dict | None:
     sb = get_supabase()
     result = sb.table("word_cache").select("*").eq("word_en", word_en).execute()
@@ -186,6 +202,7 @@ def get_ai_cost_summary(days: int = 30) -> dict:
     }
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_tts_cache(text: str, voice: str = "Kore") -> str | None:
     """캐시된 오디오(base64) 반환, 없으면 None."""
     try:
@@ -287,9 +304,11 @@ def save_secret_note(note_id: int, title: str, html_content: str) -> int:
         "title":        title,
         "html_content": html_content,
     }).execute()
+    _invalidate_content()
     return result.data[0]["id"]
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def list_secret_notes(note_id: int | None = None) -> list[dict]:
     sb = get_supabase()
     q  = sb.table("secret_notes").select("*")
@@ -313,9 +332,11 @@ def save_cheatsheet(note_id: int, note_title: str, data: dict,
         "sections":   sections,    # JSONB
         "owner_id":   owner_id,
     }).execute()
+    _invalidate_content()
     return result.data[0]["id"]
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def list_cheatsheets(note_id: int | None = None) -> list[dict]:
     sb = get_supabase()
     q  = sb.table("cheatsheets").select("*")
@@ -327,6 +348,7 @@ def list_cheatsheets(note_id: int | None = None) -> list[dict]:
 
 def delete_cheatsheet(cs_id: int):
     get_supabase().table("cheatsheets").delete().eq("id", cs_id).execute()
+    _invalidate_content()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -346,9 +368,11 @@ def save_past_problems(note_id: int, source_name: str, problems: list,
         "semester":    semester,
         "exam_type":   exam_type,
     }).execute()
+    _invalidate_content()
     return result.data[0]["id"]
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def list_past_problems(note_id: int | None = None,
                        exam_year: str = "", semester: str = "",
                        exam_type: str = "") -> list[dict]:
@@ -369,11 +393,13 @@ def update_past_problems(pp_id: int, **kwargs):
     if not payload:
         return
     get_supabase().table("past_problems").update(payload).eq("id", pp_id).execute()
+    _invalidate_content()
 
 
 def delete_past_problems(pp_id: int):
     """저장된 기출 삭제 (Supabase) — 기존 SQLite 삭제 버그 대체."""
     get_supabase().table("past_problems").delete().eq("id", pp_id).execute()
+    _invalidate_content()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -427,9 +453,12 @@ def save_to_question_bank(note_id: int, questions: list[dict],
             "answer_kr":        q.get("answer_kr", ""),
         }).execute()
         saved += 1
+    if saved:
+        _invalidate_content()
     return saved
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_question_bank(note_id: int, source_type: str | None = None,
                       difficulty: str | None = None,
                       q_type: str | None = None,
@@ -456,6 +485,7 @@ def get_question_bank(note_id: int, source_type: str | None = None,
     return rows
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def count_question_bank(note_id: int, source_type: str | None = None,
                         grammar_point_id: int | None = None) -> int:
     """뱅크 문제 수 카운트.
@@ -484,6 +514,7 @@ def increment_used_count(bank_question_id: int):
 def delete_bank_question(bank_question_id: int):
     sb = get_supabase()
     sb.table("question_bank").delete().eq("id", bank_question_id).execute()
+    _invalidate_content()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -504,6 +535,7 @@ def save_grammar_point(note_id: int, point_name: str, category: str,
         "tip":            tip,
         "ai_generated":   ai_generated,
     }).execute()
+    _invalidate_content()
     return result.data[0]["id"]
 
 
@@ -520,8 +552,10 @@ def update_grammar_point(gid: int, **kwargs):
             upd["examples"] = v   # JSONB: list 직접
     if upd:
         sb.table("grammar_points").update(upd).eq("id", gid).execute()
+        _invalidate_content()
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def get_grammar_points(note_id: int) -> list[dict]:
     sb = get_supabase()
     result = sb.table("grammar_points").select("*") \
@@ -542,6 +576,7 @@ def get_grammar_points(note_id: int) -> list[dict]:
 def delete_grammar_point(gid: int):
     sb = get_supabase()
     sb.table("grammar_points").delete().eq("id", gid).execute()
+    _invalidate_content()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
