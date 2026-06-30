@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>반반 BanBan — 영어 학습</title>
+  <meta name="theme-color" content="#4338CA" />
+  <!-- ▼▼▼ 앱 주소만 여기서 바꾸면 됩니다 (현재: ngrok 공개 URL) ▼▼▼ -->
+  <script>
+    var APP_URL = "https://steering-pumice-visiting.ngrok-free.dev";
+  </script>
+  <!-- ▲▲▲ -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #4338CA, #6366F1); color: #fff; text-align: center;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 24px; padding: 40px 32px; max-width: 360px; width: 100%;
+      backdrop-filter: blur(6px);
+    }
+    .logo {
+      width: 84px; height: 84px; border-radius: 22px; background: #fff; color: #4338CA;
+      font-size: 34px; font-weight: 900; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 18px;
+    }
+    h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 6px; }
+    p  { font-size: 0.92rem; opacity: 0.85; line-height: 1.6; margin-bottom: 22px; }
+    .btn {
+      display: inline-block; background: #fff; color: #4338CA; font-weight: 800;
+      text-decoration: none; padding: 14px 28px; border-radius: 14px; font-size: 1rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    }
+    .hint { margin-top: 16px; font-size: 0.78rem; opacity: 0.7; }
+    .spinner {
+      width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%; margin: 0 auto 16px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">반</div>
+    <div class="spinner"></div>
+    <h1>반반 BanBan</h1>
+    <p>학습 앱으로 이동하는 중이에요…<br />자동으로 안 열리면 아래 버튼을 눌러주세요.</p>
+    <a id="go" class="btn" href="#">앱 바로 열기 →</a>
+    <div class="hint">중학 영어 내신 · 외우지 말고 생각하게</div>
+  </div>
+  <script>
+    document.getElementById("go").href = APP_URL;
+    // 0.6초 뒤 자동 이동 (사용자가 페이지를 인지할 시간)
+    setTimeout(function () { window.location.href = APP_URL; }, 600);
+  </script>
+</body>
+</html>

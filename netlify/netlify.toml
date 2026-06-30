@@ -1,0 +1,14 @@
+# 반반 BanBan — Netlify 설정
+# 이 netlify 폴더를 그대로 배포하면 됩니다 (정적 사이트).
+# 앱(Streamlit)은 Netlify에서 실행되지 않으며, index.html이 실제 앱 주소로 보냅니다.
+
+[build]
+  publish = "."
+
+# 모든 경로를 앱으로 302 리다이렉트 (index.html 자동이동과 이중 안전장치).
+# ⚠️ 앱 주소가 바뀌면 아래 to = "..." 와 index.html 의 APP_URL 둘 다 수정하세요.
+[[redirects]]
+  from = "/*"
+  to = "https://steering-pumice-visiting.ngrok-free.dev"
+  status = 302
+  force = false
