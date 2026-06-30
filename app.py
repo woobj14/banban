@@ -1496,6 +1496,13 @@ if is_supabase_configured() and _auth.is_logged_in():
     if not st.session_state.get("_post_login_redirected"):
         st.session_state["_post_login_redirected"] = True
         _role = _auth.current_role()
+        # 신규 사용자 '빈 집' 방지 — 샘플 노트 시드 (멱등, 1회)
+        try:
+            from library import ensure_sample_notes
+            _u = _auth.current_user()
+            ensure_sample_notes(owner_id=_u.id if _u else None, role=_role)
+        except Exception:
+            pass
         if _role == "teacher":
             st.session_state["page"]      = "__dashboard__"
             st.session_state["dash_page"] = "학생 관리"

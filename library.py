@@ -251,3 +251,54 @@ def get_all_values(field: str) -> list[str]:
     res = sb.table(_TABLE).select(field).execute()
     seen = sorted({(r.get(field) or "") for r in (res.data or []) if r.get(field)})
     return [v for v in seen if v]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 신규 사용자 '빈 집' 방지 — 샘플 노트 시드
+#   · 공용 샘플 1개: 모든 학생/선생님이 즉시 학습 체험 (visibility=public)
+#   · 선생님 개인 샘플: 복제·수정하며 배우는 스타터 (owner=teacher, private)
+#   tags="반반샘플"로 중복 생성 방지(멱등).
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SAMPLE_TAG = "반반샘플"
+
+def _sample_exists(*, owner_id: str | None, public: bool) -> bool:
+    sb = get_supabase()
+    q  = sb.table(_TABLE).select("id").eq("tags", _SAMPLE_TAG).limit(1)
+    if public:
+        q = q.eq("visibility", "public")
+    elif owner_id:
+        q = q.eq("owner_id", owner_id).eq("visibility", "private")
+    else:
+        return True   # 잘못된 호출 — 생성 안 함
+    try:
+        return bool(q.execute().data)
+    except Exception:
+        return True   # 조회 실패 시 중복 생성 방지(보수적)
+
+
+def ensure_sample_notes(owner_id: str | None = None, role: str | None = None) -> None:
+    """로그인 후 1회 호출. 비어있으면 샘플 노트를 시드한다(멱등)."""
+    try:
+        from sample_notes import SAMPLE_NOTE_PAYLOAD
+    except Exception:
+        return
+
+    # ① 공용 샘플 1개 보장 (모든 사용자에게 보임)
+    try:
+        if not _sample_exists(owner_id=None, public=True):
+            save_note(title="🎁 반반 샘플 노트 — 바로 체험해보세요",
+                      tags=_SAMPLE_TAG, owner_id=None, visibility="public",
+                      **SAMPLE_NOTE_PAYLOAD)
+    except Exception:
+        pass
+
+    # ② 선생님 개인 편집용 샘플 보장
+    if role == "teacher" and owner_id:
+        try:
+            if not _sample_exists(owner_id=owner_id, public=False):
+                save_note(title="✏️ 내 첫 노트 (예시 — 복제·수정해보세요)",
+                          tags=_SAMPLE_TAG, owner_id=owner_id, visibility="private",
+                          **SAMPLE_NOTE_PAYLOAD)
+        except Exception:
+            pass
