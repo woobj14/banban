@@ -646,8 +646,17 @@ def _load_profile(uid: str):
             p    = result.data
             role = p.get("role") or meta.get("role", "student")
 
-            # profiles에 role이 없으면 자동 보정 저장
-            if not p.get("role") and role:
+            # ── 관리자 이메일은 항상 admin (프로필 role 드리프트·세션 캐시 무관) ──
+            _adm_email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+            try:
+                _u_email = (user.email or "").strip().lower() if user else ""
+            except Exception:
+                _u_email = ""
+            if _adm_email and _u_email == _adm_email:
+                role = "admin"
+
+            # profiles에 role이 없거나(=신규) 관리자 승격이 필요하면 저장
+            if role and p.get("role") != role:
                 try:
                     sb.table("profiles").update({"role": role}).eq("id", uid).execute()
                 except Exception:
@@ -679,6 +688,14 @@ def _load_profile(uid: str):
             # profiles 행 자체가 없으면 metadata로만 세션 구성 + 행 생성 시도
             role = meta.get("role", "student")
             name = meta.get("name", "")
+            # 관리자 이메일은 항상 admin
+            _adm_email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+            try:
+                _u_email = (user.email or "").strip().lower() if user else ""
+            except Exception:
+                _u_email = ""
+            if _adm_email and _u_email == _adm_email:
+                role = "admin"
             st.session_state["sb_student_id"]   = None
             st.session_state["sb_student_name"] = name
             st.session_state["sb_role"]         = role

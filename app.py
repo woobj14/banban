@@ -1503,7 +1503,7 @@ if is_supabase_configured() and _auth.is_logged_in():
             ensure_sample_notes(owner_id=_u.id if _u else None, role=_role)
         except Exception:
             pass
-        if _role == "teacher":
+        if _role in ("teacher", "admin"):
             st.session_state["page"]      = "__dashboard__"
             st.session_state["dash_page"] = "학생 관리"
             st.session_state["_acc_dash"] = True
