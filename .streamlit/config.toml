@@ -1,6 +1,7 @@
 [server]
 headless = true
-port = 8502
+# port는 지정하지 않음 — 로컬은 실행 플래그(--server.port), 배포(Streamlit Cloud 등)는
+# 플랫폼이 관리하는 포트를 쓰도록 둔다. (하드코딩 시 Cloud health check 포트와 불일치→다운)
 enableCORS = false
 enableXsrfProtection = false
 enableStaticServing = true
